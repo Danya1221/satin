@@ -1,1 +1,0 @@
-ALTER TABLE "ProductVariant" ADD COLUMN IF NOT EXISTS "seoKeywords" TEXT NOT NULL DEFAULT '';

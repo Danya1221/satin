@@ -1,2 +1,0 @@
-ALTER TABLE "ProductVariant"
-ADD COLUMN IF NOT EXISTS "images" TEXT[] DEFAULT ARRAY[]::TEXT[];

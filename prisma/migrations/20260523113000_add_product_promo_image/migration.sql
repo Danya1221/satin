@@ -1,1 +1,0 @@
-ALTER TABLE "Product" ADD COLUMN "promoImage" TEXT NOT NULL DEFAULT '';
