@@ -1,0 +1,3 @@
+ALTER TABLE "SupportFeature"
+ADD COLUMN "image" TEXT NOT NULL DEFAULT '';
+
