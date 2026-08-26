@@ -1,0 +1,16 @@
+RAILWAY DEPLOY
+
+1. Create a Railway project.
+2. Add PostgreSQL to the project.
+3. Deploy this source folder from GitHub or with Railway CLI.
+4. Add variables to the web service:
+   DATABASE_URL      -> use the PostgreSQL DATABASE_URL reference
+   ADMIN_LOGIN       -> your admin login
+   ADMIN_PASSWORD    -> your admin password
+   NEXT_PUBLIC_SITE_URL -> your public Railway URL, e.g. https://your-app.up.railway.app
+5. Deploy/redeploy.
+
+Build: npm ci -> npm run build
+Start: npm run db:migrate -> npm run start
+
+Do NOT upload node_modules, .next, .env, or local cache files.
