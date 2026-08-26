@@ -1,0 +1,354 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f6f8fb;
+  --foreground: #0b1220;
+}
+
+html {
+  min-height: 100%;
+  scroll-behavior: smooth;
+  background: var(--background);
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  overscroll-behavior-y: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+a {
+  cursor: pointer;
+}
+
+::selection {
+  background: #006cff;
+  color: white;
+}
+:root {
+  --page: #f6f8fb;
+  --main: #07111f;
+  --muted: rgba(0, 0, 0, 0.55);
+  --muted-soft: rgba(0, 0, 0, 0.35);
+  --card: #ffffff;
+  --card-soft: #f1f5f9;
+  --border: rgba(0, 0, 0, 0.1);
+  --blue-soft: rgba(37, 99, 235, 0.08);
+}
+
+.dark {
+  --background: #020814;
+  --foreground: #ffffff;
+  --page: #020814;
+  --main: #ffffff;
+  --muted: rgba(255, 255, 255, 0.55);
+  --muted-soft: rgba(255, 255, 255, 0.35);
+  --card: rgba(255, 255, 255, 0.035);
+  --card-soft: rgba(255, 255, 255, 0.045);
+  --border: rgba(255, 255, 255, 0.1);
+  --blue-soft: rgba(37, 99, 235, 0.12);
+}
+
+
+html.dark,
+html.dark body {
+  background: #020814;
+  color: #ffffff;
+}
+
+@supports (min-height: 100svh) {
+  html,
+  body {
+    min-height: 100svh;
+  }
+}
+
+.bg-page {
+  background-color: var(--page);
+}
+
+.text-main {
+  color: var(--main);
+}
+
+.text-muted {
+  color: var(--muted);
+}
+
+.text-muted-soft {
+  color: var(--muted-soft);
+}
+
+.card {
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.soft-box {
+  background: var(--card-soft);
+}
+
+.border-theme {
+  border-color: var(--border);
+}
+
+.bg-blue-soft {
+  background: var(--blue-soft);
+}
+body.has-mobile-bottom-nav {
+  padding-bottom: calc(74px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 1024px) {
+  body.has-mobile-bottom-nav {
+    padding-bottom: 0;
+  }
+}
+
+
+@media (max-width: 1023px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+}
+
+/* Спокойная тёмная тема без глобальной синей заливки */
+.dark {
+  --muted: rgba(255, 255, 255, 0.62);
+  --muted-soft: rgba(255, 255, 255, 0.42);
+  --card: rgba(255, 255, 255, 0.025);
+  --card-soft: rgba(255, 255, 255, 0.035);
+  --border: rgba(255, 255, 255, 0.13);
+  --blue-soft: rgba(37, 99, 235, 0.09);
+}
+
+.dark .card {
+  border-color: rgba(255, 255, 255, 0.13);
+  background: rgba(255, 255, 255, 0.025);
+  box-shadow: none;
+}
+
+.dark .soft-box,
+.dark .bg-blue-soft {
+  background-color: rgba(37, 99, 235, 0.09);
+}
+
+.dark .border-theme {
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+.dark input[class*="border"],
+.dark select[class*="border"],
+.dark textarea[class*="border"],
+.dark .admin-input,
+.dark .admin-textarea {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  background-color: rgba(255, 255, 255, 0.028) !important;
+  color: #ffffff !important;
+}
+
+.dark input[class*="border"]:focus,
+.dark select[class*="border"]:focus,
+.dark textarea[class*="border"]:focus,
+.dark .admin-input:focus,
+.dark .admin-textarea:focus {
+  border-color: rgba(59, 130, 246, 0.65) !important;
+  box-shadow: none;
+}
+
+/* Вторичные кнопки тёмные; синими остаются только явные CTA с bg-blue-* */
+.dark button[class*="border-theme"],
+.dark a[class*="border-theme"] {
+  border-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.035);
+  color: #ffffff;
+}
+
+.dark button[class*="border-theme"]:hover,
+.dark a[class*="border-theme"]:hover {
+  border-color: rgba(96, 165, 250, 0.45);
+  background-color: rgba(37, 99, 235, 0.10);
+}
+
+.dark [class*="border-dashed"] {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  background-color: rgba(255, 255, 255, 0.012);
+}
+
+
+/* Клиентский интерфейс без теней и свечения */
+header button,
+header a,
+nav button,
+nav a,
+main button,
+main a,
+main section,
+main article,
+main aside,
+main [class*="card"],
+.fixed.bottom-0 button,
+.fixed.bottom-0 a {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* Fluid Typography */
+.text-clamp\(16px\,\ 4vw\,\ 32px\) {
+  font-size: clamp(16px, 4vw, 32px);
+}
+
+.text-clamp\(18px\,\ 5vw\,\ 52px\) {
+  font-size: clamp(18px, 5vw, 52px);
+}
+
+.text-clamp\(18px\,\ 5\.5vw\,\ 60px\) {
+  font-size: clamp(18px, 5.5vw, 60px);
+}
+
+.text-clamp\(20px\,\ 6vw\,\ 72px\) {
+  font-size: clamp(20px, 6vw, 72px);
+}
+
+.text-clamp\(16px\,\ 4vw\,\ 44px\) {
+  font-size: clamp(16px, 4vw, 44px);
+}
+
+.text-clamp\(10px\,\ 2\.5vw\,\ 16px\) {
+  font-size: clamp(10px, 2.5vw, 16px);
+}
+
+.text-clamp\(10px\,\ 2vw\,\ 14px\) {
+  font-size: clamp(10px, 2vw, 14px);
+}
+
+.text-clamp\(11px\,\ 2\.2vw\,\ 14px\) {
+  font-size: clamp(11px, 2.2vw, 14px);
+}
+
+/* Fix: crisp header and mobile navigation icons
+   - keeps SVG/image icons at a stable pixel size before hydration;
+   - avoids CSS filter inversion that blurred custom SVG icons;
+   - renders custom nav icons through a mask so active icons stay white without blur. */
+.netizen-header-action-icon,
+.netizen-bottom-nav-icon,
+.netizen-bottom-nav-icon svg {
+  display: block;
+  flex-shrink: 0;
+  contain: strict;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  shape-rendering: geometricPrecision;
+  text-rendering: geometricPrecision;
+}
+
+.netizen-header-action-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.netizen-bottom-nav-icon,
+.netizen-bottom-nav-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.netizen-bottom-nav-icon svg,
+.netizen-header-action-icon {
+  overflow: visible;
+}
+
+.netizen-bottom-nav-icon[style*="mask-image"] {
+  color: currentColor;
+}
+
+/* Final fix: stable bottom nav icons and forced WebP logo usage.
+   This prevents the mobile menu icons from changing size after site settings load. */
+.netizen-bottom-nav-link {
+  height: 50px !important;
+  min-height: 50px !important;
+  max-height: 50px !important;
+  transform: none !important;
+}
+
+.netizen-bottom-nav-icon-wrap,
+.netizen-bottom-nav-icon,
+.netizen-bottom-nav-icon svg {
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  display: block !important;
+  flex: 0 0 20px !important;
+  transform: none !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+.netizen-bottom-nav-icon-wrap {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.netizen-header-action-icon,
+.netizen-header-action-icon svg {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  flex: 0 0 24px !important;
+}
+
+/* Control fix: no mobile-nav icon jumping/flicker and no favicon/logo layout shake. */
+.netizen-bottom-nav-link,
+.netizen-bottom-nav-link * {
+  box-sizing: border-box;
+}
+
+.netizen-bottom-nav-link {
+  min-width: 0 !important;
+  will-change: auto !important;
+}
+
+.netizen-bottom-nav-link svg,
+.netizen-bottom-nav-icon,
+.netizen-bottom-nav-icon svg {
+  stroke-width: 2.4px;
+  vector-effect: non-scaling-stroke;
+}
+
+.netizen-bottom-nav-icon-wrap {
+  line-height: 0 !important;
+}
+
+.netizen-brand-logo,
+.netizen-brand-logo img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Product photo blocks: keep real product images on clean white background */
+.photo-white-box,
+.dark .photo-white-box {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+
+.photo-white-box img {
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
