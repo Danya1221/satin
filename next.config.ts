@@ -30,6 +30,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: "/api/auth/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, max-age=0" },
+        ],
+      },
+      {
         source: "/images/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },

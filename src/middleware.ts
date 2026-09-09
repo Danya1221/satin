@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthSecret } from "@/lib/auth-config";
 
 type AdminRole = "owner" | "admin" | "manager" | "content" | "support";
 type AdminSection =
@@ -50,10 +51,6 @@ function uint8ArrayToBase64Url(bytes: Uint8Array) {
   }
 
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function getAuthSecret() {
-  return process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "netizen-local-auth-secret-change-me";
 }
 
 async function signPayload(encodedPayload: string) {

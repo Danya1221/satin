@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
+import { getAuthSecret } from "@/lib/auth-config";
 
 export const AUTH_COOKIE_NAME = "netizen_session";
 export const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
@@ -33,19 +34,6 @@ export type PublicAuthUser = {
     email: string;
   };
 };
-
-function getAuthSecret() {
-  const secret =
-    process.env.AUTH_SECRET ||
-    process.env.NEXTAUTH_SECRET ||
-    (process.env.NODE_ENV === "production" ? "" : "netizen-local-auth-secret-change-me");
-
-  if (!secret) {
-    throw new Error("AUTH_SECRET is required in production.");
-  }
-
-  return secret;
-}
 
 function sign(value: string) {
   return crypto.createHmac("sha256", getAuthSecret()).update(value).digest("base64url");
@@ -95,22 +83,22 @@ export function parseAuthSessionToken(token: string | undefined | null) {
     return null;
   }
 
-  const expectedSignature = sign(encodedPayload);
-
-  if (signature.length !== expectedSignature.length) {
-    return null;
-  }
-
-  const isValid = crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
-
-  if (!isValid) {
-    return null;
-  }
-
   try {
+    const expectedSignature = sign(encodedPayload);
+
+    if (signature.length !== expectedSignature.length) {
+      return null;
+    }
+
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    );
+
+    if (!isValid) {
+      return null;
+    }
+
     const payload = JSON.parse(
       Buffer.from(encodedPayload, "base64url").toString("utf8")
     ) as AuthSessionPayload;
