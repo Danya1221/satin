@@ -22,6 +22,15 @@ Neontech full admin/database build
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 ADMIN_LOGIN=admin
 ADMIN_PASSWORD=ваш_пароль
+AUTH_SECRET=случайный_секрет_для_подписи_сессий
+
+AUTH_SECRET обязателен для входа в production. Сгенерируйте его локально:
+openssl rand -hex 32
+Вставьте результат в Variables сервиса сайта на Railway и примените изменения
+через Deploy. Не используйте пароль администратора в качестве AUTH_SECRET и
+не сохраняйте значение в GitHub. Сохраняйте этот ключ между перезапусками:
+его смена завершает существующие сессии. Также поддерживается NEXTAUTH_SECRET,
+если он уже настроен вместо AUTH_SECRET.
 
 Не загружать в GitHub:
 .env

@@ -151,10 +151,17 @@ export function AuthModal({ initialMode = "login", onClose, onSuccess }: AuthMod
  headers: { "Content-Type": "application/json" },
  body: JSON.stringify(payload),
  });
- const data = (await response.json().catch(() => ({}))) as AuthResponse;
+ const data = ((await response.json().catch(() => null)) ?? {}) as AuthResponse;
 
  if (!response.ok || !data.user) {
- setError(data.message || "Не получилось войти. Проверь данные и попробуй ещё раз.");
+ const fallbackMessage = response.status >= 500
+ ? "Сервис входа временно недоступен. Попробуйте позже."
+ : response.status === 429
+ ? "Слишком много попыток входа. Попробуйте позже."
+ : response.status === 401
+ ? "Неверный логин или пароль."
+ : "Не удалось завершить вход. Попробуйте ещё раз.";
+ setError(typeof data.message === "string" && data.message ? data.message : fallbackMessage);
  return;
  }
 

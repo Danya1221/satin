@@ -5,12 +5,12 @@ import {
   getAuthCookieOptions,
   hashPassword,
   normalizeAdminRoles,
-  normalizeEmail,
   normalizeText,
   verifyPassword,
   type AdminRole,
 } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { AuthConfigurationError, getAuthSecret } from "@/lib/auth-config";
 import { normalizeEmailStrict, normalizeRuPhone } from "@/lib/contact-validation";
 
 const DEFAULT_ADMIN_LOGIN = "admin";
@@ -18,8 +18,8 @@ const DEFAULT_ADMIN_PASSWORD = "netizen-admin";
 const DEFAULT_ADMIN_NAME = "Администратор";
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
-function jsonError(message: string, status = 400) {
-  return NextResponse.json({ ok: false, message }, { status });
+function jsonError(message: string, status = 400, code?: string) {
+  return NextResponse.json({ ok: false, message, code }, { status });
 }
 
 function cleanEnvValue(value: string | undefined, fallback: string) {
@@ -146,10 +146,13 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Validate before synchronizing the admin record or creating a session.
+    getAuthSecret();
     const configuredAdmin = getConfiguredAdmin();
     if (!isDefaultAdmin(configuredAdmin) && matchesAdminCredentials(login, password, configuredAdmin)) {
+      const response = await upsertAdminAndLogin(configuredAdmin);
       clearLoginRateLimit(request, login);
-      return upsertAdminAndLogin(configuredAdmin);
+      return response;
     }
 
     const admin = await prisma.adminUser.findUnique({
@@ -229,9 +232,18 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Auth login error", error);
 
+    if (error instanceof AuthConfigurationError) {
+      return jsonError(
+        "Вход пока недоступен: требуется настройка авторизации на сервере.",
+        503,
+        "AUTH_NOT_CONFIGURED",
+      );
+    }
+
     return jsonError(
-      "Ошибка авторизации на сервере. Проверь Railway DATABASE_URL и выполни db:push/db:seed для Railway-БД.",
-      500
+      "Сервис входа временно недоступен. Попробуйте позже.",
+      500,
+      "AUTH_SERVER_ERROR",
     );
   }
 }
