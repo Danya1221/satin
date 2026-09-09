@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import Image from 'next/image';
+import Image from "@/components/store-image";
 import { useEffect, useState } from "react";
 
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { useTheme } from "@/components/theme-provider";
 import { ArrowIcon } from "@/components/arrow-icon";
 
@@ -97,8 +98,8 @@ export default function NewPage() {
  .sort((a, b) => a.sortOrder - b.sortOrder);
 
  return (
- <main className={dark ? "min-h-screen bg-[#020814] text-white" : "min-h-screen bg-[#f6f8fb] text-[#0b1220]"}>
- <div className="mx-auto max-w-[1440px] px-3 py-3 sm:px-5 sm:py-5 lg:px-6">
+ <main className="storefront storefront-page min-h-screen">
+ <div className="mx-auto max-w-[1440px]">
  <SiteHeader />
 
  <section className="mt-3 sm:mt-6">
@@ -123,6 +124,7 @@ export default function NewPage() {
  newArrivals={newArrivals}
  />
  ))}
+ <SiteFooter />
  </div>
  </main>
  );
@@ -206,14 +208,14 @@ function NewPageModule({
 }
 
 function PromoBlock({ dark, settings }: { dark: boolean; settings: Record<string, string | number | boolean | null> }) {
- const image = getText(settings, "image", "");
+ const image = getText(settings, "image", "/images/technology-hero.webp");
 
  return (
  <section className="pt-5 pb-8 sm:pt-7 sm:pb-10">
- <div className={`grid min-h-[300px] overflow-hidden rounded-[34px] border lg:grid-cols-[0.9fr_1.1fr] ${dark ? "border-blue-500/20 bg-blue-600/10" : "border-blue-100 bg-white "}`}>
- <div className="flex flex-col justify-center p-8 lg:p-12">
+ <div className={`store-editor-block grid min-h-[300px] overflow-hidden rounded-[34px] border lg:grid-cols-[0.9fr_1.1fr] ${dark ? "border-blue-500/20 bg-blue-600/10" : "border-blue-100 bg-white "}`}>
+ <div className="flex flex-col justify-center">
  <div className="text-sm font-bold uppercase tracking-[0.18em] text-blue-500">Новинки</div>
- <h1 className="mt-4 text-4xl font-bold leading-none tracking-[-0.05em] lg:text-6xl">{getText(settings, "title", "Новые поступления")}</h1>
+ <h1 className="store-transaction-heading mt-4 text-4xl font-bold leading-none tracking-[-0.05em] lg:text-6xl">{getText(settings, "title", "Новые поступления")}</h1>
  <p className={`mt-5 max-w-[520px] text-base leading-relaxed ${muted(dark)}`}>{getText(settings, "subtitle", "Самые свежие модели и конфигурации")}</p>
  <Link href={getText(settings, "buttonHref", "/catalog?new=1")} className="mt-8 inline-flex w-fit rounded-xl bg-blue-600 px-7 py-4 text-sm font-medium text-white">
  {getText(settings, "buttonText", "В каталог")}
@@ -245,11 +247,11 @@ function NewCard({
  const description = descriptionOverride || product.shortDescription || "Откройте карточку, чтобы выбрать конфигурацию.";
 
  return (
- <Link href={`/product/${product.slug}`} className={`group overflow-hidden rounded-3xl border transition-all duration-500 hover:-translate-y-1 ${dark ? "border-white/10 bg-white/[0.035] hover:border-blue-500/35" : "border-black/10 bg-white hover:border-blue-500/35"}`}>
- <div className={`flex h-[230px] items-center justify-center ${image ? "bg-white" : dark ? "bg-white/[0.04]" : "bg-slate-100"}`}>
+ <Link href={`/product/${product.slug}`} className={`store-new-card group overflow-hidden rounded-3xl border transition-all duration-500 hover:-translate-y-1 ${dark ? "border-white/10 bg-white/[0.035] hover:border-blue-500/35" : "border-black/10 bg-white hover:border-blue-500/35"}`}>
+ <div className={`store-new-media flex h-[230px] items-center justify-center ${image ? "bg-white" : dark ? "bg-white/[0.04]" : "bg-slate-100"}`}>
  {image ? <Image quality={75} src={image} alt={title} className="h-full w-full object-contain" /> : null}
  </div>
- <div className="p-6">
+ <div className="store-new-content">
  <div className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">{badge}</div>
  <h2 className="mt-3 text-2xl font-bold leading-tight tracking-[-0.04em]">{title}</h2>
  <p className={`mt-3 text-sm leading-relaxed ${muted(dark)}`}>{description}</p>

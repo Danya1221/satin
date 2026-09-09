@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import Image from 'next/image';
+import Image from "@/components/store-image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { products as fallbackProducts, type ProductModel as CatalogProductBase } from "@/data/products";
 import { productPositions as fallbackProductPositions, type ProductPosition as CatalogPositionBase } from "@/data/product-positions";
 import { getModelPriceRange, getPriceNumber } from "@/lib/product-pricing";
 import { buildCatalogSearch, matchesCatalogSearch, scoreCatalogSearchTarget, type CatalogSearchIntent } from "@/lib/search-v2";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { ProductCarousel } from "@/components/product-carousel";
 import { useTheme } from "@/components/theme-provider";
 import { ArrowIcon } from "@/components/arrow-icon";
@@ -1087,13 +1088,13 @@ export function CatalogView({
  }
 
  return (
- <main className="min-h-screen bg-page px-3 py-4 text-main transition-colors duration-700 sm:px-5 sm:py-6 xl:px-8">
+ <main className="storefront storefront-page min-h-screen">
  <div className="w-full">
  <div className="mx-auto max-w-[1440px]">
  <SiteHeader />
  </div>
 
- <section className="mt-4 sm:mt-8 lg:mt-10">
+ <section className="store-catalog-intro mt-4 sm:mt-8 lg:mt-10">
  <nav className="flex flex-wrap items-center gap-1.5 text-xs text-muted sm:text-sm" aria-label="Хлебные крошки">
  <Link href="/" className="transition-colors hover:text-blue-500">
  Главная
@@ -1128,7 +1129,7 @@ export function CatalogView({
  ) : null}
  </div>
 
- <h1 className="mt-2 text-[30px] font-bold leading-[1.02] tracking-[-0.055em] sm:mt-3 sm:text-4xl md:text-5xl lg:text-6xl">
+ <h1 className="store-transaction-heading mt-2 text-[30px] font-bold leading-[1.02] tracking-[-0.055em] sm:mt-3 sm:text-4xl md:text-5xl lg:text-6xl">
  {pageTitle}
  </h1>
 
@@ -1226,7 +1227,6 @@ export function CatalogView({
 
  <div className="absolute bottom-3 right-3 top-3 flex w-[43%] items-center justify-center">
  {category.image ? (
- // eslint-disable-next-line @next/next/no-img-element
  <img
  src={category.image}
  alt=""
@@ -1345,7 +1345,7 @@ export function CatalogView({
  id="catalog-products"
  >
  {isFilterOpen && (
- <div className="fixed inset-x-0 bottom-0 top-[78px] z-50 overflow-y-auto bg-black/45 px-3 py-4 backdrop-blur-sm sm:top-[92px] lg:top-[104px] xl:sticky xl:top-6 xl:inset-auto xl:w-[320px] xl:shrink-0 xl:overflow-visible xl:bg-transparent xl:p-0 xl:backdrop-blur-0">
+ <div className="store-filter-overlay fixed inset-x-0 bottom-0 top-[78px] z-50 overflow-y-auto bg-black/45 px-3 py-4 backdrop-blur-sm sm:top-[92px] lg:top-[104px] xl:sticky xl:top-6 xl:inset-auto xl:w-[320px] xl:shrink-0 xl:overflow-visible xl:bg-transparent xl:p-0 xl:backdrop-blur-0">
  <div className="mx-auto max-w-[430px] xl:mx-0 xl:max-h-[calc(100vh-48px)] xl:overflow-y-auto xl:pr-1 xl:pb-4">
  <FilterPanel
  onClose={() => setIsFilterOpen(false)}
@@ -1393,9 +1393,9 @@ export function CatalogView({
  title={
  normalizedSearchQuery
  ? `Найдено по запросу “${normalizedSearchQuery}”`
- : selectedModel?.name ?? selectedBrand ?? activeCategory?.name ?? "Позиции / SKU"
+ : selectedModel?.name ?? selectedBrand ?? activeCategory?.name ?? "Варианты товаров"
  }
- subtitle={`${positionResults.length} конкретных позиций в подборке`}
+ subtitle={`${positionResults.length} вариантов в подборке`}
  dark={dark}
  />
  ) : (
@@ -1425,6 +1425,7 @@ export function CatalogView({
  )}
  </div>
  </section>
+ <SiteFooter />
  </div>
  </main>
  );
@@ -1593,7 +1594,7 @@ function PositionGrid({
  </div>
  </div>
 
- <div className="mt-3 grid grid-cols-2 gap-3 sm:mt-5 sm:grid-cols-[repeat(auto-fill,minmax(220px,260px))] sm:gap-5">
+ <div className="store-position-grid mt-5">
  {positions.map((position) => (
  <PositionProductCard key={position.sku} position={position} dark={dark} />
  ))}
@@ -1612,7 +1613,7 @@ function PositionProductCard({
  return (
  <Link
  href={`/product/${position.modelSlug}?sku=${encodeURIComponent(position.sku)}`}
- className={`group block h-full rounded-[18px] border p-2 transition-all duration-500 hover:-translate-y-1 sm:rounded-3xl sm:p-4 ${
+ className={`store-position-card group block h-full rounded-[18px] border p-2 transition-all duration-500 hover:-translate-y-1 sm:rounded-3xl sm:p-4 ${
  dark
  ? "border-white/10 bg-white/[0.035] hover:border-blue-500/35 hover:bg-blue-500/[0.04]"
  : "border-black/10 bg-white hover:border-blue-500/35"
@@ -1622,7 +1623,6 @@ function PositionProductCard({
  className="photo-white-box flex aspect-square w-full items-center justify-center overflow-hidden rounded-[14px] bg-white text-slate-400 transition-colors duration-700 dark:bg-white sm:aspect-[3/4] sm:rounded-2xl"
  >
  {position.images?.[0] || getModelImage(position.product) ? (
- // eslint-disable-next-line @next/next/no-img-element
  <Image quality={75} src={position.images?.[0] ?? getModelImage(position.product)}
  alt={position.title}
  className="h-full w-full object-contain p-2 sm:p-3"

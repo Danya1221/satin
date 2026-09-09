@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatRuPhone, isValidEmail, normalizeRuPhone } from "@/lib/contact-validation";
 
 type AuthMode = "login" | "register";
@@ -46,6 +46,9 @@ const emptyRegister = {
 };
 
 export function AuthModal({ initialMode = "login", onClose, onSuccess }: AuthModalProps) {
+ const dialogRef = useRef<HTMLDivElement>(null);
+ const closeRef = useRef(onClose);
+ closeRef.current = onClose;
  const [mode, setMode] = useState<AuthMode>(initialMode);
  const [loginDraft, setLoginDraft] = useState(emptyLogin);
  const [registerDraft, setRegisterDraft] = useState(emptyRegister);
@@ -64,6 +67,23 @@ export function AuthModal({ initialMode = "login", onClose, onSuccess }: AuthMod
  setError("");
  setFieldErrors({});
  }, [initialMode]);
+
+ useEffect(() => {
+   const previous = document.activeElement as HTMLElement | null;
+   const previousOverflow = document.body.style.overflow;
+   document.body.style.overflow = "hidden";
+   dialogRef.current?.querySelector<HTMLInputElement>("input")?.focus();
+   const onKey = (event: KeyboardEvent) => {
+     if (event.key === "Escape") { event.preventDefault(); closeRef.current(); }
+     if (event.key !== "Tab") return;
+     const items = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') ?? []);
+     const first = items[0]; const last = items[items.length - 1];
+     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+     if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+   };
+   document.addEventListener("keydown", onKey);
+   return () => { document.body.style.overflow = previousOverflow; document.removeEventListener("keydown", onKey); previous?.focus(); };
+ }, []);
 
  const title = useMemo(() => {
  return mode === "register" ? "Создать аккаунт" : "Вход в личный кабинет";
@@ -155,14 +175,14 @@ export function AuthModal({ initialMode = "login", onClose, onSuccess }: AuthMod
  }
 
  return (
- <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-md">
- <div className="w-full max-w-[520px] rounded-[30px] border border-theme bg-page p-6 text-main ">
+ <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="store-auth-title" className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-md">
+ <div className="max-h-[90svh] overflow-y-auto w-full max-w-[520px] rounded-[30px] border border-theme bg-page p-6 text-main ">
  <div className="flex items-start justify-between gap-4">
  <div>
  <div className="text-sm font-medium uppercase tracking-[0.2em] text-blue-500">
  Аккаунт
  </div>
- <h2 className="mt-2 text-3xl font-bold tracking-[-0.045em]">
+ <h2 id="store-auth-title" className="mt-2 text-3xl font-bold tracking-[-0.045em]">
  {title}
  </h2>
  <p className="mt-2 text-sm leading-relaxed text-muted">
