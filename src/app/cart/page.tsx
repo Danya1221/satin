@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { products } from "@/data/products";
 import { productPositions } from "@/data/product-positions";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { formatPrice, getPriceNumber } from "@/lib/product-pricing";
 import {
  formatRuPhone,
@@ -870,7 +871,7 @@ export default function CartPage() {
 
  if (isOrderSent) {
  return (
- <main className="min-h-screen bg-page px-2 py-2.5 text-main transition-colors duration-700 sm:px-5 sm:py-6">
+ <main className="storefront storefront-page min-h-screen">
  <div className="mx-auto max-w-[1440px]">
  <SiteHeader />
 
@@ -879,7 +880,7 @@ export default function CartPage() {
  ✓
  </div>
 
- <h1 className="mt-4 text-3xl font-bold tracking-[-0.04em] sm:mt-6 sm:text-5xl">
+ <h1 className="store-transaction-heading mt-4 text-3xl font-bold tracking-[-0.04em] sm:mt-6 sm:text-5xl">
  Заказ отправлен
  </h1>
 
@@ -904,6 +905,7 @@ export default function CartPage() {
  </Link>
  </div>
  </section>
+ <SiteFooter />
  </div>
  </main>
  );
@@ -911,7 +913,7 @@ export default function CartPage() {
 
  if (!hasItems) {
  return (
- <main className="min-h-screen bg-page px-2 py-2.5 text-main transition-colors duration-700 sm:px-5 sm:py-6">
+ <main className="storefront storefront-page min-h-screen">
  <div className="mx-auto max-w-[1440px]">
  <SiteHeader />
 
@@ -920,7 +922,7 @@ export default function CartPage() {
  🛒
  </div>
 
- <h1 className="mt-4 text-3xl font-bold tracking-[-0.04em] sm:mt-6 sm:text-5xl">
+ <h1 className="store-transaction-heading mt-4 text-3xl font-bold tracking-[-0.04em] sm:mt-6 sm:text-5xl">
  Корзина пустая
  </h1>
 
@@ -945,13 +947,14 @@ export default function CartPage() {
  </Link>
  </div>
  </section>
+ <SiteFooter />
  </div>
  </main>
  );
  }
 
  return (
- <main className="min-h-screen bg-page px-2 py-2.5 text-main transition-colors duration-700 sm:px-5 sm:py-6">
+ <main className="storefront storefront-page min-h-screen">
  <div className="mx-auto max-w-[1440px]">
  <SiteHeader />
 
@@ -964,7 +967,7 @@ export default function CartPage() {
  <section className="card rounded-[20px] p-3 sm:rounded-[32px] sm:p-6 md:p-8">
  <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
  <div>
- <h1 className="text-[24px] font-bold leading-none tracking-[-0.04em] sm:text-5xl">
+ <h1 className="store-transaction-heading text-[24px] font-bold leading-none tracking-[-0.04em] sm:text-5xl">
  Корзина
  </h1>
 
@@ -1001,12 +1004,12 @@ export default function CartPage() {
  return (
  <article
  key={item.sku}
- className="rounded-[18px] border border-theme bg-blue-soft p-2.5 sm:rounded-3xl sm:p-5"
+ className="store-cart-item rounded-[18px] border border-theme bg-blue-soft p-2.5 sm:rounded-3xl sm:p-5"
  >
- <div className="grid grid-cols-[62px_minmax(0,1fr)] gap-2 sm:grid-cols-[110px_minmax(0,1fr)] sm:gap-4 md:grid-cols-[140px_1fr_auto] md:items-center md:gap-5">
+ <div className="store-cart-item-grid grid grid-cols-[62px_minmax(0,1fr)] gap-2 sm:grid-cols-[110px_minmax(0,1fr)] sm:gap-4 md:grid-cols-[140px_1fr_auto] md:items-center md:gap-5">
  <Link
  href={productHref}
- className="soft-box photo-white-box relative flex h-[62px] items-center justify-center overflow-hidden rounded-2xl bg-white dark:bg-white text-[10px] text-muted-soft sm:h-[110px] md:h-[140px] md:text-sm"
+ className="store-cart-item-photo soft-box photo-white-box relative flex h-[62px] items-center justify-center overflow-hidden rounded-2xl bg-white dark:bg-white text-[10px] text-muted-soft sm:h-[110px] md:h-[140px] md:text-sm"
  >
  {item.image ? (
  <>
@@ -1142,7 +1145,7 @@ export default function CartPage() {
  </section>
  </div>
 
- <aside className="card h-fit rounded-[22px] p-3.5 sm:rounded-[32px] sm:p-8 lg:sticky lg:top-6">
+ <aside className="store-cart-summary card h-fit rounded-[22px] p-3.5 sm:rounded-[32px] sm:p-8 lg:sticky lg:top-6">
  <h2 className="text-lg font-bold sm:text-2xl">Итого</h2>
 
  <div className="mt-3 space-y-2 text-xs text-muted sm:mt-6 sm:space-y-4 sm:text-base">
@@ -1222,7 +1225,7 @@ export default function CartPage() {
  </div>
  ) : (
  <p className="mt-2 text-xs leading-relaxed text-muted-soft">
- Условия промокода проверяются на сервере: сумма заказа, статус клиента, история покупок и лимиты.
+ Введите промокод — скидка появится в итоговой сумме.
  </p>
  )}
  </div>
@@ -1275,6 +1278,7 @@ export default function CartPage() {
  />
  <ProductStrip title="Вы смотрели" items={displayedRecentlyViewed} />
  </div>
+ <SiteFooter />
  </div>
 
  {activeModal === "delivery" && (
@@ -1676,7 +1680,7 @@ function AddressSuggestionInput({
  return;
  }
  setSuggestions([]);
- setProviderMessage("Не удалось выполнить поиск. Проверьте соединение и Railway Logs.");
+ setProviderMessage("Не удалось найти адрес. Попробуйте ещё раз или введите его вручную.");
  setSearched(true);
  setOpen(false);
  setActiveIndex(-1);
@@ -1708,6 +1712,7 @@ function AddressSuggestionInput({
  <div className={`relative min-w-0 ${open ? "z-[400]" : "z-0"}`}>
  <div className="relative">
  <input
+ role="combobox"
  value={value}
  onChange={(event) => {
  setCommittedValue("");
@@ -1926,7 +1931,7 @@ function Modal({
  onClose: () => void;
 }) {
  return (
- <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 py-4 backdrop-blur-sm md:items-center md:px-6">
+ <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 px-4 py-4 backdrop-blur-sm md:items-center md:px-6">
  <div className="card relative max-h-[92vh] w-full max-w-[720px] overflow-visible rounded-[24px] p-5 sm:rounded-[28px] sm:p-6 md:p-8">
  <div className="flex items-start justify-between gap-4">
  <h2 className="text-2xl font-bold tracking-[-0.04em] sm:text-3xl">{title}</h2>

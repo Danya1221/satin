@@ -2,10 +2,11 @@
 
 import { BackLink } from "@/components/back-link";
 import Link from "next/link";
-import Image from 'next/image';
+import Image from "@/components/store-image";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import type {
  CustomerStatusProgress,
  StatusDiscountTier,
@@ -437,7 +438,7 @@ export default function ProfilePage() {
 
  if (!isAuthenticated) {
  return (
- <main className="min-h-screen bg-page px-3 py-4 text-main transition-colors duration-700 sm:px-5 sm:py-6">
+ <main className="storefront storefront-page min-h-screen">
  <div className="mx-auto max-w-[1440px]">
  <SiteHeader />
 
@@ -451,7 +452,7 @@ export default function ProfilePage() {
  Личный кабинет
  </div>
 
- <h1 className="mt-3 text-4xl font-bold tracking-[-0.05em] md:text-5xl">
+ <h1 className="store-transaction-heading mt-3 text-4xl font-bold tracking-[-0.05em] md:text-5xl">
  Войдите или зарегистрируйтесь
  </h1>
 
@@ -485,6 +486,7 @@ export default function ProfilePage() {
  </div>
  </div>
  </section>
+ <SiteFooter />
  </div>
  </main>
  );
@@ -498,7 +500,7 @@ export default function ProfilePage() {
  const currentStatusRank = statusProgress ? getStatusRank(statusProgress.status) : 1;
 
  return (
- <main className="min-h-screen bg-page px-3 py-4 text-main transition-colors duration-700 sm:px-5 sm:py-6">
+ <main className="storefront storefront-page min-h-screen">
  <div className="mx-auto max-w-[1440px]">
  <SiteHeader />
 
@@ -524,7 +526,7 @@ export default function ProfilePage() {
 
  <div className="min-w-0 flex-1">
  <div className="flex flex-wrap items-center gap-2">
- <h1 className="truncate text-2xl font-bold tracking-[-0.045em] sm:text-3xl">
+ <h1 className="store-transaction-heading truncate text-2xl font-bold tracking-[-0.045em] sm:text-3xl">
  {getFullName(profile) || "Клиент Neontech"}
  </h1>
 
@@ -945,6 +947,7 @@ export default function ProfilePage() {
  Данные сохранены
  </div>
  ) : null}
+ <SiteFooter />
  </div>
 
  {activeModal === "profile" && (
@@ -1245,7 +1248,7 @@ function Modal({
  onClose: () => void;
 }) {
  return (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8 backdrop-blur-md">
+ <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 px-4 py-8 backdrop-blur-md">
  <div className="w-full max-w-[560px] rounded-[28px] border border-theme bg-page p-6 text-main ">
  <div className="flex items-start justify-between gap-4">
  <div>

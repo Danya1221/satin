@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ForceBrandHead } from "@/components/force-brand-head";
 import { HardLinkNavigation } from "@/components/hard-link-navigation";
 import "./globals.css";
 
@@ -53,25 +52,19 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <head>
-        <title>Neontech</title>
         <meta name="application-name" content="Neontech" />
         <meta name="apple-mobile-web-app-title" content="Neontech" />
         <link rel="icon" href="/neontech-favicon.ico?v=neontech-6" sizes="any" />
         <link rel="icon" href="/neontech-favicon.svg?v=neontech-6" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=neontech-6" sizes="180x180" />
         <link rel="manifest" href="/site.webmanifest?v=neontech-6" />
-        {/* Preload критические шрифты */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         
-        {/* DNS prefetch для API */}
-        <link rel="dns-prefetch" href="https://api.example.com" />
         
         {/* Оптимизация производительности */}
-        <meta name="theme-color" content="#2563eb" />
+        <meta name="theme-color" content="#f5f5f7" />
+        <script dangerouslySetInnerHTML={{ __html: `try { document.documentElement.classList.toggle("dark", localStorage.getItem("netizen-theme") === "dark"); } catch {}` }} />
       </head>
       <body>
-        <ForceBrandHead />
         <HardLinkNavigation />
         <ThemeProvider>{children}</ThemeProvider>
       </body>

@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import Image from 'next/image';
+import Image from "@/components/store-image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import { StoreProductCard } from "@/components/store-product-card";
 import { ProductTabs } from "@/components/product-tabs";
 import { ArrowIcon } from "@/components/arrow-icon";
 import type {
@@ -814,7 +816,7 @@ export function ProductDetailView({
  }
 
  return (
- <main className="min-h-screen bg-page px-3 py-4 text-main transition-colors duration-700 sm:px-5 sm:py-6">
+ <main className="storefront storefront-page min-h-screen">
  <div className="mx-auto max-w-[1440px]">
  <SiteHeader />
 
@@ -838,9 +840,9 @@ export function ProductDetailView({
  <span className="text-main">{product.name}</span>
  </nav>
 
- <section className="mt-4 grid grid-cols-1 items-start gap-4 sm:grid-cols-[52%_1fr] lg:mt-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
+ <section className="store-detail-grid mt-4 grid grid-cols-1 items-start gap-4 sm:grid-cols-[52%_1fr] lg:mt-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
  <div className="flex h-full flex-col gap-4">
- <div className="card rounded-[28px] p-4 sm:rounded-[36px] sm:p-6">
+ <div className="store-detail-gallery card rounded-[28px] p-4 sm:rounded-[36px] sm:p-6">
  <div
  className="relative cursor-grab touch-pan-y select-none active:cursor-grabbing"
  role="region"
@@ -888,7 +890,9 @@ export function ProductDetailView({
  key={dotIndex}
  type="button"
  onClick={() => setActiveImageIndex(dotIndex)}
- className={`h-1 rounded-full transition-all duration-300 ${
+ aria-label={`Показать фото ${dotIndex + 1}`}
+ aria-current={activeImageIndex === dotIndex}
+ className={`store-gallery-dot h-1 rounded-full transition-all duration-300 ${
  activeImageIndex === dotIndex ? "w-4 bg-blue-500" : "w-1.5 bg-black/20"
  }`}
  />
@@ -936,7 +940,7 @@ export function ProductDetailView({
  <div className="card rounded-[22px] p-3 sm:rounded-[36px] sm:p-8">
  <div className="text-[11px] sm:text-sm text-muted">{product.brand}</div>
 
- <h1 className="mt-1 text-[15px] font-bold leading-tight tracking-[-0.03em] sm:mt-2 sm:text-5xl">
+ <h1 className="store-transaction-heading mt-1 text-[15px] font-bold leading-tight tracking-[-0.03em] sm:mt-2 sm:text-5xl">
  {product.name}
  </h1>
 
@@ -1890,6 +1894,7 @@ export function ProductDetailView({
  <ProductStrip title="Похожие товары" products={similarProducts} />
  </section>
  ) : null}
+ <SiteFooter />
  </div>
  </main>
  );
@@ -1959,7 +1964,6 @@ function ProductStory({ product }: { product: ProductCard }) {
  className={`flex min-h-[220px] items-center justify-center sm:min-h-[320px] ${imageFirst ? "lg:order-1" : ""} ${isDark ? "bg-white/[0.03]" : "bg-blue-soft"}`}
  >
  {hasImage ? (
- // eslint-disable-next-line @next/next/no-img-element
  <Image quality={75} src={block.image}
  alt={block.imageAlt || block.title || product.name}
  className="h-full max-h-[520px] w-full object-contain p-6 lg:p-10"
@@ -1993,41 +1997,8 @@ function ProductStrip({
  <section>
  <h2 className="text-2xl font-bold tracking-[-0.04em] sm:text-3xl">{title}</h2>
 
- <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-5 sm:gap-5 md:grid-cols-3 xl:grid-cols-5">
- {items.map((item) => (
- <Link
- key={item.slug}
- href={`/product/${item.slug}`}
- className="card group rounded-[20px] p-3 transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/35 hover:bg-blue-soft sm:rounded-3xl sm:p-4"
- >
- <div className="soft-box flex aspect-[3/4] items-center justify-center overflow-hidden rounded-2xl text-sm text-muted-soft">
- {item.image ? (
- <Image
- quality={75}
- src={item.image}
- alt={item.name}
- className="h-full w-full object-contain p-3"
- />
- ) : (
- "Фото"
- )}
- </div>
-
- <div className="pt-4">
- <div className="text-sm text-muted-soft">{item.brand}</div>
-
- <h3 className="mt-1 line-clamp-2 font-bold leading-tight">
- {item.name}
- </h3>
-
- <p className="mt-1 text-sm text-muted">{item.price}</p>
-
- <div className="mt-3 flex items-center justify-center rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors group-hover:bg-blue-500 sm:mt-4 sm:py-3">
- Смотреть
- </div>
- </div>
- </Link>
- ))}
+ <div className="store-product-grid mt-5">
+ {items.map(item => <StoreProductCard key={item.slug} product={item} />)}
  </div>
  </section>
  );

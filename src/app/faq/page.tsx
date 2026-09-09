@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { ArrowIcon } from "@/components/arrow-icon";
 
 type FaqQuestion = {
@@ -174,7 +175,7 @@ export default function FaqPage() {
  }
 
  return (
- <main className="min-h-screen bg-page px-2 py-2.5 text-main transition-colors duration-700 sm:px-4 sm:py-5 lg:px-6 lg:py-6">
+ <main className="storefront storefront-page min-h-screen">
  <div className="mx-auto max-w-[1440px]">
  <SiteHeader />
 
@@ -195,7 +196,7 @@ export default function FaqPage() {
  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-500 sm:text-xs lg:hidden">
  Помощь
  </div>
- <h1 className="mt-1 max-w-[820px] text-[28px] font-bold leading-[1.05] tracking-[-0.05em] sm:text-4xl lg:mt-0 lg:text-6xl">
+ <h1 className="store-transaction-heading mt-1 max-w-[820px] text-[28px] font-bold leading-[1.05] tracking-[-0.05em] sm:text-4xl lg:mt-0 lg:text-6xl">
  {faqHeader.title}
  </h1>
  <p className="mt-2 max-w-[720px] text-xs leading-relaxed text-muted sm:text-sm lg:mt-3 lg:text-lg">
@@ -420,6 +421,7 @@ export default function FaqPage() {
  ))}
  </section>
  ) : null}
+ <SiteFooter />
  </div>
  </main>
  );

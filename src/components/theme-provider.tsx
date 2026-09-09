@@ -17,24 +17,18 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [dark, setDarkState] = useState(true);
+  const [dark, setDarkState] = useState(false);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("netizen-theme");
-
-    if (savedTheme === "light") {
-      setDarkState(false);
-      document.documentElement.classList.remove("dark");
-      return;
-    }
-
-    setDarkState(true);
-    document.documentElement.classList.add("dark");
+    let selected = false;
+    try { selected = localStorage.getItem("netizen-theme") === "dark"; } catch { /* Storage may be disabled. */ }
+    setDarkState(selected);
+    document.documentElement.classList.toggle("dark", selected);
   }, []);
 
   function setDark(value: boolean) {
     setDarkState(value);
-    localStorage.setItem("netizen-theme", value ? "dark" : "light");
+    try { localStorage.setItem("netizen-theme", value ? "dark" : "light"); } catch { /* Theme still changes for this visit. */ }
 
     if (value) {
       document.documentElement.classList.add("dark");
