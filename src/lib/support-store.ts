@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSupportTopic, supportTopics } from "@/lib/support-topics";
 
@@ -168,8 +169,9 @@ export function getSupportStatusLabel(status: SupportStatus) {
   return labels[status] ?? status;
 }
 
-export async function listSupportRequests() {
+export async function listSupportRequests(where: Prisma.SupportRequestWhereInput = {}) {
   const requests = await prisma.supportRequest.findMany({
+    where,
     orderBy: { updatedAt: "desc" },
     include: {
       order: { select: { id: true, publicId: true } },
@@ -228,6 +230,8 @@ export async function createSupportRequest(input: {
   phone?: string;
   email?: string;
   source?: SupportRequest["source"];
+  guestTokenHash?: string;
+  consent?: { purpose: string; documentVersion: string; documentText: string; documentHash: string };
 }) {
   const topic = getSupportTopic(normalizeSupportTopicId(input.topicId));
   const message = normalizeText(input.message);
@@ -235,33 +239,14 @@ export async function createSupportRequest(input: {
   const email = normalizeText(input.email);
   const customerName = normalizeText(input.customerName) || "Гость Neontech";
 
-  let customerId = normalizeText(input.customerId) || undefined;
-
-  if (!customerId && phone) {
-    const customer = await prisma.customer.findFirst({ where: { phone } });
-    const savedCustomer = customer
-      ? await prisma.customer.update({
-          where: { id: customer.id },
-          data: {
-            name: customerName,
-            email,
-          },
-        })
-      : await prisma.customer.create({
-          data: {
-            name: customerName,
-            phone,
-            email,
-          },
-        });
-
-    customerId = savedCustomer.id;
-  }
+  const customerId = normalizeText(input.customerId) || undefined;
 
   const createdAt = nowIso();
-  const request = await prisma.supportRequest.create({
+  const request = await prisma.$transaction(async tx => {
+  const created = await tx.supportRequest.create({
     data: {
       publicId: await generateSupportPublicId(),
+      guestTokenHash: input.guestTokenHash || "",
       customerId,
       topic: topic.id,
       clientName: customerName,
@@ -288,6 +273,10 @@ export async function createSupportRequest(input: {
         orderBy: { createdAt: "asc" },
       },
     },
+  });
+
+  if (input.consent) await tx.consentReceipt.create({ data: { ...input.consent, subjectId: created.id } });
+  return created;
   });
 
   return mapSupportRequest(request);

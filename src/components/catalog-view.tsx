@@ -11,6 +11,10 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ProductCarousel } from "@/components/product-carousel";
 import { useTheme } from "@/components/theme-provider";
+import { usePageContent, PageExtras } from "@/components/page-content";
+import { useStoreSettings } from "@/components/store-settings";
+import { StoreProductCard } from "@/components/store-product-card";
+import type { CSSProperties } from "react";
 import { ArrowIcon } from "@/components/arrow-icon";
 
 type CategoryItem = {
@@ -517,10 +521,17 @@ export function CatalogView({
  categoriesData = [],
 }: CatalogViewProps) {
  const { dark } = useTheme();
+ const content = usePageContent("catalog");
+ const site = useStoreSettings();
+ const [pageLimit, setPageLimit] = useState(24);
+ const configuredLimit = Math.max(1, Math.min(100, Number(content.settings("catalog-grid").limit) || 24));
+ useEffect(() => { setPageLimit(configuredLimit); }, [configuredLimit, categoryId]);
+ const filtersEnabled = content.visible("catalog-filters") && content.settings("catalog-filters").showFilters !== false && site?.catalog?.showFilters !== false;
 
- const catalogProductsData = productsData.length > 0 ? productsData : fallbackProducts;
+
+ const catalogProductsData = productsData;
  const catalogPositionsData =
- positionsData.length > 0 ? positionsData : fallbackProductPositions;
+ positionsData;
  const categories = categoriesData;
 
  const isUrlSyncReady = useRef(false);
@@ -1094,7 +1105,7 @@ export function CatalogView({
  <SiteHeader />
  </div>
 
- <section className="store-catalog-intro mt-4 sm:mt-8 lg:mt-10">
+ <section hidden={!content.visible("catalog-header")} className="store-catalog-intro mt-4 sm:mt-8 lg:mt-10">
  <nav className="flex flex-wrap items-center gap-1.5 text-xs text-muted sm:text-sm" aria-label="Хлебные крошки">
  <Link href="/" className="transition-colors hover:text-blue-500">
  Главная
@@ -1130,17 +1141,18 @@ export function CatalogView({
  </div>
 
  <h1 className="store-transaction-heading mt-2 text-[30px] font-bold leading-[1.02] tracking-[-0.055em] sm:mt-3 sm:text-4xl md:text-5xl lg:text-6xl">
- {pageTitle}
+ {activeCategory ? pageTitle : content.text("catalog-header", "title", pageTitle)}
  </h1>
 
  <p className="mt-2 max-w-[760px] text-sm leading-relaxed text-muted sm:mt-3 sm:text-base">
- {pageDescription}
+ {activeCategory ? (site?.catalog?.showCategorySeoText === false ? "" : pageDescription) : content.text("catalog-header", "subtitle", pageDescription)}
  </p>
  </div>
 
  <div className="flex flex-wrap gap-2 sm:gap-3">
  <button
  type="button"
+ hidden={!filtersEnabled}
  onClick={() => setIsFilterOpen((prev) => !prev)}
  className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-300 sm:px-6 sm:py-4 ${
  isFilterOpen
@@ -1151,7 +1163,7 @@ export function CatalogView({
  {isFilterOpen ? "Скрыть фильтры" : "Фильтры"}
  </button>
 
- <SortControl
+ {content.visible("catalog-filters") && content.settings("catalog-filters").showSort !== false && <SortControl
  sortMode={sortMode}
  isOpen={isSortOpen}
  onToggle={() => setIsSortOpen((prev) => !prev)}
@@ -1159,12 +1171,12 @@ export function CatalogView({
  setSortMode(nextSortMode);
  setIsSortOpen(false);
  }}
- />
+ />}
  </div>
  </div>
  </section>
 
- <section className="mt-4 sm:mt-8">
+ <section hidden={!content.visible("category-grid")} className="mt-4 sm:mt-8">
  {isCategoryPanelVisible ? (
  <div className="rounded-[24px] border border-theme bg-card p-3 sm:rounded-[30px] sm:p-5">
  <div className="flex items-center justify-between gap-4">
@@ -1343,8 +1355,9 @@ export function CatalogView({
  <section
  className="mt-4 flex flex-col gap-4 sm:mt-6 xl:flex-row xl:items-start"
  id="catalog-products"
+ hidden={!content.visible("catalog-grid")}
  >
- {isFilterOpen && (
+ {isFilterOpen && filtersEnabled && (
  <div className="store-filter-overlay fixed inset-x-0 bottom-0 top-[78px] z-50 overflow-y-auto bg-black/45 px-3 py-4 backdrop-blur-sm sm:top-[92px] lg:top-[104px] xl:sticky xl:top-6 xl:inset-auto xl:w-[320px] xl:shrink-0 xl:overflow-visible xl:bg-transparent xl:p-0 xl:backdrop-blur-0">
  <div className="mx-auto max-w-[430px] xl:mx-0 xl:max-h-[calc(100vh-48px)] xl:overflow-y-auto xl:pr-1 xl:pb-4">
  <FilterPanel
@@ -1402,21 +1415,13 @@ export function CatalogView({
  <EmptyCatalogState onReset={resetSpecificationFilters} />
  )
  ) : sortedVisibleModelProducts.length > 0 ? (
- productsByBrand.map(([brand, brandProducts]) => (
- <ProductCarousel
- key={brand}
- title={brand}
- subtitle={
- activeCategory
- ? `${activeCategory.name} · ${brandProducts.length} товар`
- : `${brandProducts.length} товар в подборке`
- }
- products={brandProducts}
- actionLabel="Смотреть все"
- actionOnClick={() => handleSelectBrand(brand)}
- dark={dark}
- />
- ))
+ <div style={{ "--catalog-columns": Math.max(2, Math.min(5, Number(content.settings("catalog-grid").columns) || 4)) } as CSSProperties}>
+ {site?.catalog?.showBrandRows !== false ? productsByBrand.map(([brand, brandProducts]) => {
+ const visible = brandProducts.filter(product => sortedVisibleModelProducts.slice(0, site?.catalog?.showLoadMore === false ? undefined : pageLimit).some(item => item.slug === product.slug));
+ return visible.length ? <section className="store-section" key={brand}><h2 className="text-2xl font-bold mb-5">{brand}</h2><div className="store-catalog-grid">{visible.map(product => <StoreProductCard key={product.slug} product={product} />)}</div></section> : null;
+ }) : <div className="store-catalog-grid">{sortedVisibleModelProducts.slice(0, site?.catalog?.showLoadMore === false ? undefined : pageLimit).map(product => <StoreProductCard key={product.slug} product={product} />)}</div>}
+ {site?.catalog?.showLoadMore !== false && sortedVisibleModelProducts.length > pageLimit && <button className="store-button mt-6" type="button" onClick={() => setPageLimit(value => value + configuredLimit)}>Показать ещё</button>}
+ </div>
  ) : (
  <EmptyCatalogState
  onReset={handleResetCatalogState}
@@ -1425,6 +1430,7 @@ export function CatalogView({
  )}
  </div>
  </section>
+ <PageExtras content={content} />
  <SiteFooter />
  </div>
  </main>
@@ -2064,12 +2070,14 @@ function EmptyCatalogState({
  mode?: "no-results" | "empty-catalog";
 }) {
  const isEmptyCatalog = mode === "empty-catalog";
+ const content = usePageContent("catalog");
+ if (!content.visible("catalog-empty")) return null;
 
  return (
  <div className="transition-all duration-300">
  <div className="card rounded-[24px] p-6 text-center sm:rounded-[34px] sm:p-12">
  <h2 className="text-2xl font-bold tracking-[-0.04em] sm:text-4xl">
- {isEmptyCatalog ? "Пока ничего нет" : "Ничего не найдено"}
+ {content.text("catalog-empty", "title", isEmptyCatalog ? "Пока ничего нет" : "Ничего не найдено")}
  </h2>
 
  <p className="mx-auto mt-4 max-w-[620px] text-muted">

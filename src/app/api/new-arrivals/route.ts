@@ -11,18 +11,16 @@ export async function GET() {
     const [catalog, siteSettings, homeBlocks] = await Promise.all([
       getPublicCatalogData(),
       getSiteEditorSettings(),
-      getPublicPageBlocks("home"),
+      getPublicPageBlocks("new"),
     ]);
 
     const products = catalog.productCards.filter((product) => product.slug !== "catalog");
     const explicitNewArrivals = products.filter((product) => product.isNew);
-    const pageBlocks = homeBlocks.filter((block) =>
-      ["new-arrivals", "promo-banner", "product-carousel", "support"].includes(block.type)
-    );
+    const pageBlocks = homeBlocks;
 
     return NextResponse.json({
       products,
-      newArrivals: explicitNewArrivals.length > 0 ? explicitNewArrivals : products.slice(0, 12),
+      newArrivals: explicitNewArrivals,
       pageBlocks,
       siteSettings,
     });

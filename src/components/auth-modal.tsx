@@ -1,4 +1,5 @@
 "use client";
+import { ConsentFields, emptyConsent } from "@/components/consent-fields";
 
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -46,6 +47,7 @@ const emptyRegister = {
 };
 
 export function AuthModal({ initialMode = "login", onClose, onSuccess }: AuthModalProps) {
+ const [consent, setConsent] = useState(emptyConsent);
  const dialogRef = useRef<HTMLDivElement>(null);
  const closeRef = useRef(onClose);
  closeRef.current = onClose;
@@ -93,6 +95,7 @@ export function AuthModal({ initialMode = "login", onClose, onSuccess }: AuthMod
  setError("");
 
  if (mode === "register") {
+ if (!consent.accepted || !consent.version) { setError("Подтвердите согласие на обработку персональных данных."); return; }
  const nextErrors: typeof fieldErrors = {};
  const normalizedPhone = normalizeRuPhone(registerDraft.phone);
 
@@ -138,6 +141,7 @@ export function AuthModal({ initialMode = "login", onClose, onSuccess }: AuthMod
  mode === "register"
  ? {
  ...registerDraft,
+ consent,
  firstName: registerDraft.firstName.trim(),
  lastName: registerDraft.lastName.trim(),
  phone: normalizeRuPhone(registerDraft.phone),
@@ -381,6 +385,7 @@ export function AuthModal({ initialMode = "login", onClose, onSuccess }: AuthMod
  )}
  </div>
 
+ {mode === "register" && <ConsentFields value={consent} onChange={setConsent} />}
  {error && (
  <div className="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-500">
  {error}

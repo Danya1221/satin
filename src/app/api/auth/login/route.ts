@@ -13,8 +13,6 @@ import { prisma } from "@/lib/db";
 import { AuthConfigurationError, getAuthSecret } from "@/lib/auth-config";
 import { normalizeEmailStrict, normalizeRuPhone } from "@/lib/contact-validation";
 
-const DEFAULT_ADMIN_LOGIN = "admin";
-const DEFAULT_ADMIN_PASSWORD = "netizen-admin";
 const DEFAULT_ADMIN_NAME = "Администратор";
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
@@ -33,9 +31,12 @@ function cleanEnvValue(value: string | undefined, fallback: string) {
 }
 
 function getConfiguredAdmin() {
+  const login = cleanEnvValue(process.env.ADMIN_LOGIN, "");
+  const password = cleanEnvValue(process.env.ADMIN_PASSWORD, "");
+  if (!login || !password) return null;
   return {
-    login: cleanEnvValue(process.env.ADMIN_LOGIN, DEFAULT_ADMIN_LOGIN),
-    password: cleanEnvValue(process.env.ADMIN_PASSWORD, DEFAULT_ADMIN_PASSWORD),
+    login,
+    password,
     name: cleanEnvValue(process.env.ADMIN_NAME, DEFAULT_ADMIN_NAME),
     roles: ["owner"] as AdminRole[],
   };
@@ -97,10 +98,6 @@ function matchesAdminCredentials(login: string, password: string, admin: { login
   return login === admin.login && password === admin.password;
 }
 
-function isDefaultAdmin(admin: { login: string; password: string }) {
-  return admin.login === DEFAULT_ADMIN_LOGIN && admin.password === DEFAULT_ADMIN_PASSWORD;
-}
-
 function getClientKey(request: Request, login: string) {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   const realIp = request.headers.get("x-real-ip")?.trim();
@@ -149,7 +146,7 @@ export async function POST(request: Request) {
     // Validate before synchronizing the admin record or creating a session.
     getAuthSecret();
     const configuredAdmin = getConfiguredAdmin();
-    if (!isDefaultAdmin(configuredAdmin) && matchesAdminCredentials(login, password, configuredAdmin)) {
+    if (configuredAdmin && matchesAdminCredentials(login, password, configuredAdmin)) {
       const response = await upsertAdminAndLogin(configuredAdmin);
       clearLoginRateLimit(request, login);
       return response;
@@ -182,6 +179,7 @@ export async function POST(request: Request) {
       normalizedPhone || normalizedEmail
         ? await prisma.customer.findFirst({
             where: {
+              passwordHash: { not: "" },
               OR: [
                 ...(normalizedPhone ? [{ phone: normalizedPhone }] : []),
                 ...(normalizedEmail ? [{ email: normalizedEmail }] : []),

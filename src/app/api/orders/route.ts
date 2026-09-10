@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { validateConsent } from "@/lib/legal-db";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAuthSession } from "@/lib/auth";
@@ -25,6 +26,7 @@ type IncomingOrderItem = {
 };
 
 type IncomingOrderBody = {
+  consent?: { accepted?: boolean; version?: string; offerAccepted?: boolean };
   customer?: {
     name?: string;
     phone?: string;
@@ -69,6 +71,9 @@ export async function POST(request: Request) {
   try {
     const session = await getAuthSession();
     const body = (await request.json()) as IncomingOrderBody;
+    if (body?.consent?.offerAccepted !== true) return NextResponse.json({ error: "Подтвердите условия продажи." }, { status: 400 });
+    let proof;
+    try { proof = await validateConsent(body.consent, "order"); } catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : "Подтвердите согласие." }, { status: 400 }); }
     const sessionCustomer =
       session?.role === "customer" && session.customerId
         ? await prisma.customer.findUnique({
@@ -197,7 +202,7 @@ export async function POST(request: Request) {
     const customer =
       sessionCustomer ||
       (phone
-        ? await prisma.customer.findFirst({ where: { phone } })
+        ? null
         : null);
 
     const savedCustomer = customer
@@ -313,6 +318,7 @@ export async function POST(request: Request) {
         });
       }
 
+      await tx.consentReceipt.create({ data: { ...proof, subjectId: created.id } });
       return created;
     });
 

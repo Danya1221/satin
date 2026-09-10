@@ -592,7 +592,7 @@ function fallbackBrandingImage(field: BrandingImageField) {
   return defaultSiteEditorSettings.branding[field];
 }
 
-function mergeBrandingImagesForStorage(incoming: unknown, current: unknown) {
+export function mergeBrandingImagesForStorage(incoming: unknown, current: unknown) {
   const incomingSite = isRecord(incoming) ? incoming : {};
   const currentSite = isRecord(current) ? current : {};
   const incomingBranding = isRecord(incomingSite.branding)

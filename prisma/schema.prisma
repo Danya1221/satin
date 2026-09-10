@@ -358,6 +358,7 @@ model PromoCodeUsage {
 }
 
 model SupportRequest {
+  guestTokenHash String @default("")
   id          String        @id @default(cuid())
   publicId    String        @unique
   customerId  String?
@@ -537,4 +538,16 @@ model PageBlock {
 
   @@index([pageKey, enabled, sortOrder])
   @@index([type])
+}
+
+model ConsentReceipt {
+  id String @id @default(cuid())
+  purpose String
+  subjectId String
+  documentVersion String
+  documentText String
+  documentHash String
+  acceptedAt DateTime @default(now())
+  @@index([subjectId, purpose])
+  @@index([acceptedAt])
 }

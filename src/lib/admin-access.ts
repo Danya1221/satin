@@ -2,34 +2,8 @@ import "server-only";
 
 import { getAuthSession, normalizeAdminRoles, type AdminRole, type AuthSessionPayload } from "@/lib/auth";
 
-export type AdminSection =
-  | "dashboard"
-  | "orders"
-  | "order-settings"
-  | "customers"
-  | "products"
-  | "positions"
-  | "categories"
-  | "support"
-  | "site-editor"
-  | "settings"
-  | "staff";
-
-const allRoles: AdminRole[] = ["owner", "admin", "manager", "content", "support"];
-
-export const adminSectionAccess: Record<AdminSection, AdminRole[]> = {
-  dashboard: allRoles,
-  orders: ["owner", "admin", "manager"],
-  "order-settings": ["owner", "admin"],
-  customers: ["owner", "admin", "manager"],
-  products: ["owner", "admin", "content"],
-  positions: ["owner", "admin", "manager", "content"],
-  categories: ["owner", "admin", "content"],
-  support: ["owner", "admin", "manager", "support"],
-  "site-editor": ["owner", "admin", "content"],
-  settings: ["owner"],
-  staff: ["owner"],
-};
+import { adminSectionAccess, type AdminSection } from "@/lib/admin-policy";
+export { adminSectionAccess, type AdminSection } from "@/lib/admin-policy";
 
 export function getAdminSessionRoles(session: AuthSessionPayload | null | undefined): AdminRole[] {
   if (session?.role !== "admin") {

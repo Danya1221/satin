@@ -1,7 +1,9 @@
 "use client";
+import { ConsentFields, emptyConsent } from "@/components/consent-fields";
 
 import { BackLink } from "@/components/back-link";
 import Link from "next/link";
+import { usePageContent, PageExtras } from "@/components/page-content";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { products } from "@/data/products";
@@ -322,6 +324,8 @@ function getStoredDelivery(): DeliveryData {
 }
 
 export default function CartPage() {
+ const [consent, setConsent] = useState(emptyConsent);
+ const content = usePageContent("cart");
  const [items, setItems] = useState<CartItem[]>([]);
  const [isCartLoaded, setIsCartLoaded] = useState(false);
  const [itemPendingRemove, setItemPendingRemove] = useState<CartItem | null>(null);
@@ -773,6 +777,7 @@ export default function CartPage() {
  }
 
  async function placeOrder() {
+ if (!consent.accepted || !consent.version || !consent.offerAccepted) { setOrderError("Подтвердите согласие и условия продажи."); return; }
  if (isOrderSubmitting) {
  return;
  }
@@ -795,6 +800,7 @@ export default function CartPage() {
  "Content-Type": "application/json",
  },
  body: JSON.stringify({
+ consent,
  customer: isRegistered
  ? {
  ...customer,
@@ -905,6 +911,7 @@ export default function CartPage() {
  </Link>
  </div>
  </section>
+ <PageExtras content={content} />
  <SiteFooter />
  </div>
  </main>
@@ -947,6 +954,7 @@ export default function CartPage() {
  </Link>
  </div>
  </section>
+ <PageExtras content={content} />
  <SiteFooter />
  </div>
  </main>
@@ -964,7 +972,7 @@ export default function CartPage() {
 
  <div className="mt-3 grid items-start gap-3 lg:mt-6 lg:grid-cols-[1fr_420px] lg:gap-8">
  <div className="space-y-3 sm:space-y-6">
- <section className="card rounded-[20px] p-3 sm:rounded-[32px] sm:p-6 md:p-8">
+ <section hidden={!content.visible("cart-items")} className="card rounded-[20px] p-3 sm:rounded-[32px] sm:p-6 md:p-8">
  <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
  <div>
  <h1 className="store-transaction-heading text-[24px] font-bold leading-none tracking-[-0.04em] sm:text-5xl">
@@ -1117,7 +1125,7 @@ export default function CartPage() {
  </div>
  </section>
 
- <section className="grid grid-cols-2 gap-2">
+ <section hidden={!content.visible("delivery-methods")} className="grid grid-cols-2 gap-2">
  {!isRegistered && (
  <CheckoutCard
  title="Контактные данные"
@@ -1134,7 +1142,7 @@ export default function CartPage() {
  )}
 
  <CheckoutCard
- title="Доставка"
+ title={content.text("delivery-methods", "title", "Доставка")}
  text={deliverySummary}
  status={hasDelivery ? "Заполнено" : "Выбрать"}
  isComplete={hasDelivery}
@@ -1145,8 +1153,8 @@ export default function CartPage() {
  </section>
  </div>
 
- <aside className="store-cart-summary card h-fit rounded-[22px] p-3.5 sm:rounded-[32px] sm:p-8 lg:sticky lg:top-6">
- <h2 className="text-lg font-bold sm:text-2xl">Итого</h2>
+ <aside hidden={!content.visible("order-summary")} className="store-cart-summary card h-fit rounded-[22px] p-3.5 sm:rounded-[32px] sm:p-8 lg:sticky lg:top-6">
+ <h2 className="text-lg font-bold sm:text-2xl">{content.text("order-summary", "title", "Итого")}</h2>
 
  <div className="mt-3 space-y-2 text-xs text-muted sm:mt-6 sm:space-y-4 sm:text-base">
  <div className="flex justify-between gap-4">
@@ -1253,9 +1261,10 @@ export default function CartPage() {
  </div>
  )}
 
+ <ConsentFields value={consent} onChange={setConsent} order />
  <button
  type="button"
- disabled={!canPlaceOrder || isOrderSubmitting}
+ disabled={!canPlaceOrder || isOrderSubmitting || !consent.accepted || !consent.offerAccepted}
  onClick={placeOrder}
  className="mt-4 flex w-full justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-600/40 disabled:text-white/60 sm:mt-6 sm:px-7 sm:py-4"
  >
@@ -1278,6 +1287,7 @@ export default function CartPage() {
  />
  <ProductStrip title="Вы смотрели" items={displayedRecentlyViewed} />
  </div>
+ <PageExtras content={content} />
  <SiteFooter />
  </div>
 

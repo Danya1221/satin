@@ -210,3 +210,12 @@ test("authentication responses override public API caching", async () => {
   assert.equal(headers[authIndex].headers.find(header => header.key === "Cache-Control").value,
     "private, no-store, max-age=0");
 });
+
+
+test("missing bootstrap credentials never create a default administrator", async () => {
+  delete process.env.ADMIN_LOGIN;
+  delete process.env.ADMIN_PASSWORD;
+  const response = await login("admin", fixturePassword);
+  assert.equal(response.status, 401);
+  assert.equal(upsertCalls, 0);
+});

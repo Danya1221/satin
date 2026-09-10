@@ -1,4 +1,5 @@
 "use client";
+import { ConsentFields, emptyConsent } from "@/components/consent-fields";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -63,6 +64,7 @@ function formatMessageTime(value: string) {
 }
 
 export default function HelpPage() {
+ const [consent, setConsent] = useState(emptyConsent);
   const [topics, setTopics] = useState<SupportTopic[]>(defaultSupportTopics);
   const [activeTopicId, setActiveTopicId] = useState(defaultSupportTopics[0].id);
   const [message, setMessage] = useState("");
@@ -164,6 +166,7 @@ export default function HelpPage() {
 
   function selectTopic(topicId: string) {
     setActiveTopicId(topicId);
+    setConsent(emptyConsent);
     setMessage("");
     setError("");
   }
@@ -173,6 +176,7 @@ export default function HelpPage() {
     const trimmedMessage = message.trim();
 
     if (!trimmedMessage || isSending) return;
+    if (!activeRequest && (!consent.accepted || !consent.version)) { setError("Подтвердите согласие на обработку персональных данных."); return; }
 
     setIsSending(true);
     setError("");
@@ -188,6 +192,7 @@ export default function HelpPage() {
             name: authenticatedName || customerName.trim() || "Клиент",
           }
         : {
+            consent,
             topicId: activeTopic.id,
             message: trimmedMessage,
             customerName: authenticatedName || customerName.trim() || "Гость Neontech",
@@ -376,6 +381,7 @@ export default function HelpPage() {
               ) : null}
 
               <form onSubmit={sendMessage} className="border-t border-theme bg-card p-3 sm:p-4 lg:p-5">
+                {!activeRequest && <ConsentFields value={consent} onChange={setConsent} />}
 
                 <div className="flex items-end gap-2">
                   <textarea

@@ -139,11 +139,11 @@ async function main() {
     });
   }
 
-  const adminLogin = cleanEnvValue(process.env.ADMIN_LOGIN, "admin");
-  const adminPassword = cleanEnvValue(process.env.ADMIN_PASSWORD, "netizen-admin");
+  const adminLogin = cleanEnvValue(process.env.ADMIN_LOGIN, "");
+  const adminPassword = cleanEnvValue(process.env.ADMIN_PASSWORD, "");
   const adminName = cleanEnvValue(process.env.ADMIN_NAME, "Администратор");
 
-  await prisma.adminUser.upsert({
+  if (adminLogin && adminPassword) await prisma.adminUser.upsert({
     where: { login: adminLogin },
     update: {
       name: adminName,

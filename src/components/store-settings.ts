@@ -2,29 +2,31 @@
 
 import { useEffect, useState } from "react";
 
-export type PublicStoreSettings = {
-  branding?: { storeName?: string; logoLight?: string; logoDark?: string; mobileLogo?: string; navIconHome?: string; navIconCatalog?: string; navIconNew?: string; navIconSupport?: string; navIconCart?: string };
-  contacts?: { phone?: string; phoneText?: string; workingHours?: string; city?: string; email?: string; telegram?: string };
-};
-
+import type { SiteEditorSettings } from "@/lib/site-settings-db";
+export type PublicStoreSettings = { branding?: Partial<SiteEditorSettings["branding"]>; contacts?: Partial<SiteEditorSettings["contacts"]>; catalog?: Partial<SiteEditorSettings["catalog"]>; productPage?: Partial<SiteEditorSettings["productPage"]>; seo?: Partial<SiteEditorSettings["seo"]> };
 let settingsRequest: Promise<PublicStoreSettings | null> | undefined;
+let requestedAt = 0;
 export function useStoreSettings(initial?: PublicStoreSettings | null) {
   const [settings, setSettings] = useState<PublicStoreSettings | null>(initial ?? null);
   useEffect(() => {
-    if (initial) { setSettings(initial); return; }
     let active = true;
-    if (!settingsRequest) {
-      settingsRequest = fetch("/api/site-settings", { cache: "no-store" })
-        .then(async response => response.ok ? (await response.json()).site ?? null : null)
-        .catch(() => { settingsRequest = undefined; return null; });
+    function reload(force = false) {
+      if (!force && initial) { setSettings(initial); return; }
+      if (force || !settingsRequest || Date.now() - requestedAt > 10000) {
+        requestedAt = Date.now();
+        settingsRequest = fetch("/api/site-settings", { cache: "no-store" }).then(async r => r.ok ? (await r.json()).site ?? null : null).catch(() => null);
+      }
+      settingsRequest.then(value => { if (active && value) setSettings(value); });
     }
-    settingsRequest.then(value => { if (active) setSettings(value); });
-    return () => { active = false; };
+    const refresh = () => reload(true);
+    const storage = (event: StorageEvent) => { if (event.key === "store-settings-updated") refresh(); };
+    reload(); window.addEventListener("store-settings-updated", refresh); window.addEventListener("storage", storage);
+    return () => { active = false; window.removeEventListener("store-settings-updated", refresh); window.removeEventListener("storage", storage); };
   }, [initial]);
   return settings;
 }
 
 export function storeContact(value?: string) {
   const text = value?.trim() || "";
-  return /123.?45.?67|netizen[_.]|netizen\.store|адрес будет/i.test(text) ? "" : text;
+  return /123.?45.?67|79990000000|netizen[_.]|netizen\.store|адрес будет/i.test(text) ? "" : text;
 }

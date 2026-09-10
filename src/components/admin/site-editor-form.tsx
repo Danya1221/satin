@@ -4,7 +4,7 @@ import { BackLink } from "@/components/back-link";
 import Link from "next/link";
 import { SiteContentLibraryForm } from "@/components/admin/site-content-library-form";
 import { FaqAdminClient } from "@/components/admin/faq-admin-client";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import type {
   ModuleDefinition,
@@ -19,7 +19,7 @@ import type { SiteContentLibrary } from "@/lib/site-content-library-db";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 type BuilderState = "idle" | "saving" | "saved" | "error";
-type SettingsTab = "branding" | "contacts" | "seo";
+type SettingsTab = "branding" | "contacts" | "seo" | "display";
 
 type Props = {
   initialSettings: SiteEditorSettings;
@@ -30,11 +30,29 @@ type Props = {
 const settingTabs: Array<{ key: SettingsTab; title: string; text: string }> = [
   { key: "branding", title: "Бренд", text: "Логотип, название и тема сайта." },
   { key: "contacts", title: "Контакты", text: "Телефон, адреса, ПВЗ и соцсети." },
+  { key: "display", title: "Отображение", text: "Каталог и карточка товара." },
   { key: "seo", title: "SEO", text: "Title, description и ключевые слова." },
 ];
 
 export function SiteEditorForm({ initialSettings, initialPageBuilder, initialContentLibrary }: Props) {
   const [settings, setSettings] = useState(initialSettings);
+  const dirtyBlocks = useRef(new Set<string>());
+  const dirtyMedia = useRef(new Set<string>());
+  const [mediaCount, setMediaCount] = useState(0);
+  const [mediaSavedVersion, setMediaSavedVersion] = useState(0);
+  const [dirtyCount, setDirtyCount] = useState(0);
+  const [savedSettings, setSavedSettings] = useState(JSON.stringify(initialSettings));
+  const [saveError, setSaveError] = useState("");
+  const [workspaceTab, setWorkspaceTab] = useState<"pages" | "media" | "settings">("pages");
+  const settingsDirty = JSON.stringify(settings) !== savedSettings;
+  const hasChanges = settingsDirty || dirtyCount > 0 || mediaCount > 0;
+  function markDirty(id: string) { dirtyBlocks.current.add(id); setDirtyCount(dirtyBlocks.current.size); }
+  useEffect(() => {
+    if (!hasChanges) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [hasChanges]);
   const [pageBuilder, setPageBuilder] = useState(initialPageBuilder);
   const [contentLibrary, setContentLibrary] = useState(initialContentLibrary);
   const [activePage, setActivePage] = useState<PageKey>("home");
@@ -181,6 +199,7 @@ export function SiteEditorForm({ initialSettings, initialPageBuilder, initialCon
   }
 
   function updateLocalBlock(id: string, patch: Partial<SitePageBlock>) {
+    markDirty(id);
     setPageBuilder((current) => ({
       ...current,
       blocks: {
@@ -193,6 +212,7 @@ export function SiteEditorForm({ initialSettings, initialPageBuilder, initialCon
   }
 
   function updateBlockSetting(id: string, key: string, value: PageBlockSettings[string]) {
+    markDirty(id);
     setPageBuilder((current) => ({
       ...current,
       blocks: {
@@ -220,33 +240,37 @@ export function SiteEditorForm({ initialSettings, initialPageBuilder, initialCon
     }
 
     const payload = (await response.json()) as PageBuilderState;
-    setPageBuilder(payload);
+    setPageBuilder(current => {
+      const local = new Map(Object.values(current.blocks).flat().map(block => [block.id, block]));
+      for (const page of payload.pages) payload.blocks[page.key] = payload.blocks[page.key].map(block => dirtyBlocks.current.has(block.id) && local.has(block.id) ? { ...local.get(block.id)!, sortOrder: block.sortOrder } : block);
+      return payload;
+    });
   }
 
+  async function persist(blocks: SitePageBlock[], includeSettings = false) {
+    setSaveError("");
+    const response = await fetch("/api/admin/site-editor", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blocks, ...(includeSettings ? { site: settings, media: { banners: contentLibrary.banners.filter(item => dirtyMedia.current.has(item.id)), benefits: contentLibrary.benefits.filter(item => dirtyMedia.current.has(item.id)) } } : {}) }),
+    }).catch(() => null);
+    const payload = await response?.json().catch(() => null);
+    if (!response?.ok) { setSaveError(payload?.error || "Нет связи с сервером. Изменения остались в редакторе."); return false; }
+    for (const block of blocks) dirtyBlocks.current.delete(block.id);
+    setDirtyCount(dirtyBlocks.current.size);
+    if (includeSettings) {
+      setSavedSettings(JSON.stringify(settings));
+      const patch = payload?.libraryPatch as SiteContentLibrary | undefined;
+      if (patch) setContentLibrary(current => ({ banners: current.banners.map(item => patch.banners.find(saved => saved.id === item.id) ?? item), benefits: current.benefits.map(item => patch.benefits.find(saved => saved.id === item.id) ?? item) }));
+      dirtyMedia.current.clear(); setMediaCount(0); setMediaSavedVersion(value => value + 1);
+    }
+    await refreshBuilder().catch(() => setSaveError("Сохранено, но список не обновился. Обновите страницу."));
+    window.dispatchEvent(new Event("store-settings-updated"));
+    try { localStorage.setItem("store-settings-updated", String(Date.now())); } catch {}
+    return true;
+  }
   async function saveBlock(block: SitePageBlock) {
     setBuilderState("saving");
-
-    const response = await fetch(`/api/admin/page-blocks/${block.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: block.title,
-        description: block.description,
-        enabled: block.enabled,
-        sortOrder: block.sortOrder,
-        type: block.type,
-        settings: block.settings,
-      }),
-    }).catch(() => null);
-
-    if (!response?.ok) {
-      setBuilderState("error");
-      return;
-    }
-
-    await refreshBuilder().catch(() => null);
-    setBuilderState("saved");
-    window.setTimeout(() => setBuilderState("idle"), 2200);
+    setBuilderState(await persist([block]) ? "saved" : "error");
   }
 
   async function toggleBlock(block: SitePageBlock) {
@@ -256,6 +280,8 @@ export function SiteEditorForm({ initialSettings, initialPageBuilder, initialCon
 
   async function moveBlock(block: SitePageBlock, direction: "up" | "down") {
     setBuilderState("saving");
+    const pending = Object.values(pageBuilder.blocks).flat().filter(item => dirtyBlocks.current.has(item.id));
+    if (pending.length && !(await persist(pending))) { setBuilderState("error"); return; }
 
     const response = await fetch(`/api/admin/page-blocks/${block.id}`, {
       method: "PATCH",
@@ -313,6 +339,8 @@ export function SiteEditorForm({ initialSettings, initialPageBuilder, initialCon
       return;
     }
 
+    dirtyBlocks.current.delete(block.id);
+    setDirtyCount(dirtyBlocks.current.size);
     await refreshBuilder().catch(() => null);
     setSelectedBlockId("");
     setBuilderState("saved");
@@ -321,98 +349,31 @@ export function SiteEditorForm({ initialSettings, initialPageBuilder, initialCon
 
   async function saveSettings() {
     setSaveState("saving");
-
-    const response = await fetch("/api/admin/site-settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scope: "site", value: settings }),
-    }).catch(() => null);
-
-    if (!response?.ok) {
-      setSaveState("error");
-      return;
-    }
-
-    const payload = (await response.json().catch(() => null)) as { site?: SiteEditorSettings } | null;
-
-    if (payload?.site) {
-      setSettings(payload.site);
-    }
-
-    setSaveState("saved");
-    window.setTimeout(() => setSaveState("idle"), 2500);
+    setBuilderState("saving");
+    const blocks = Object.values(pageBuilder.blocks).flat().filter(block => dirtyBlocks.current.has(block.id));
+    const success = await persist(blocks, true);
+    setSaveState(success ? "saved" : "error");
+    setBuilderState("idle");
+    return success;
   }
 
   return (
     <main className="min-h-screen bg-[#020814] px-4 py-4 text-white sm:px-6 sm:py-6">
       <div className="mx-auto max-w-[1440px]">
-        <header className="flex min-h-[76px] flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-4 sm:px-6">
-          <Link href="/nz-console" className="text-xl font-bold tracking-[-0.04em]">
-            Neontech Console
-          </Link>
-
-          <div className="hidden items-center gap-3 text-sm text-white/55 md:flex">
-            <span>Редактор сайта</span>
-            <span>·</span>
-            <span>простая настройка блоков</span>
-          </div>
-
-          <Link
-            href="/"
-            target="_blank"
-            className="rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-medium transition-colors hover:border-blue-500/40 hover:bg-blue-500/10"
-          >
-            Предпросмотр
-          </Link>
-        </header>
-
-        <section className="mt-8 rounded-[34px] border border-white/10 bg-white/[0.035] p-5 sm:p-8">
-          <BackLink href="/nz-console" label="В админку" variant="admin" />
-
-          <div className="mt-5 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <div className="inline-flex rounded-full border border-blue-500/35 bg-blue-500/10 px-4 py-2 text-sm font-medium text-blue-400">
-                Конструктор сайта
-              </div>
-              <h1 className="mt-5 text-4xl font-bold tracking-[-0.055em] sm:text-5xl">Редактор сайта</h1>
-              <p className="mt-4 max-w-[820px] text-sm leading-relaxed text-white/55">
-                Проще: выбери страницу, выбери блок, измени пару понятных полей и сохрани. Все сложные настройки спрятаны ниже в “Глобальные настройки”.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/"
-                target="_blank"
-                className="rounded-xl border border-white/10 bg-white/[0.03] px-6 py-4 text-sm font-medium transition-colors hover:border-blue-500/40 hover:bg-blue-500/10"
-              >
-                Открыть сайт
-              </Link>
-              <button
-                type="button"
-                onClick={saveSettings}
-                disabled={saveState === "saving"}
-                className="rounded-xl bg-blue-600 px-6 py-4 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saveState === "saving" ? "Сохраняю..." : "Сохранить настройки"}
-              </button>
-            </div>
-          </div>
-
-          {saveState === "saved" && <Alert tone="success">Глобальные настройки сохранены.</Alert>}
-          {saveState === "error" && <Alert tone="error">Не удалось сохранить настройки.</Alert>}
-          {builderState === "saved" && <Alert tone="success">Модуль обновлён.</Alert>}
-          {builderState === "error" && <Alert tone="error">Не удалось сохранить модуль.</Alert>}
-        </section>
-
+        <div className="admin-page-heading"><div><p className="admin-eyebrow">Сайт</p><h1>Редактор сайта</h1><p>Настройте страницы, фотографии и стиль магазина.</p><div className="admin-inline-status" aria-live="polite">{hasChanges ? `Есть несохранённые изменения${dirtyCount ? ` · блоков: ${dirtyCount}` : ""}` : "Все изменения сохранены"}</div></div><div className="flex flex-wrap gap-3"><Link href={activePage === "home" ? "/" : activePage === "product" ? "/catalog" : `/${activePage}`} target="_blank" className="admin-secondary-button">Открыть страницу</Link><button type="button" onClick={saveSettings} disabled={saveState === "saving" || builderState === "saving"} className="admin-primary-button">{saveState === "saving" ? "Сохраняем…" : "Сохранить всё"}</button></div></div>
+        {(saveError || saveState === "error" || builderState === "error") && <div className="admin-alert admin-alert-error" role="alert">{saveError || "Не удалось сохранить. Попробуйте ещё раз."}</div>}
+        {(saveState === "saved" || builderState === "saved") && !saveError && <div className="admin-alert" role="status">Изменения опубликованы на сайте.</div>}
+        <nav className="admin-editor-tabs" role="tablist" aria-label="Разделы редактора">{([{key:"pages", title:"Страницы и блоки"},{key:"media",title:"Баннеры и преимущества"},{key:"settings",title:"Бренд и контакты"}] as const).map(tab => <button type="button" role="tab" aria-selected={workspaceTab === tab.key} key={tab.key} onClick={() => setWorkspaceTab(tab.key)}>{tab.title}</button>)}</nav>
+        <fieldset className="admin-editor-workspace" disabled={saveState === "saving" || builderState === "saving"}>
+        <div hidden={workspaceTab !== "pages"}>
         <section className="mt-6 rounded-[34px] border border-white/10 bg-white/[0.035] p-4 sm:p-5">
           <div className="flex flex-wrap gap-2">
             {pageBuilder.pages.map((page) => (
               <button
                 type="button"
                 key={page.key}
-                onPointerDown={() => switchActivePage(page.key)}
                 onClick={() => switchActivePage(page.key)}
+                aria-pressed={activePage === page.key}
                 className={`rounded-2xl border px-5 py-3 text-sm font-semibold transition-all ${
                   activePage === page.key
                     ? "border-blue-500/50 bg-blue-500/15 text-white"
@@ -425,7 +386,7 @@ export function SiteEditorForm({ initialSettings, initialPageBuilder, initialCon
           </div>
         </section>
 
-        <section className="mt-6 grid gap-6 xl:grid-cols-[390px_minmax(0,1fr)]">
+        <section className="mt-6 grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
           <aside className="rounded-[34px] border border-white/10 bg-white/[0.035] p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -508,31 +469,36 @@ export function SiteEditorForm({ initialSettings, initialPageBuilder, initialCon
           </section>
         </section>
 
-        {activePage === "home" ? (
+        </div>
+        <div hidden={workspaceTab !== "media"}>
+        {true ? (
           <SiteContentLibraryForm
             initialLibrary={contentLibrary}
             onChange={setContentLibrary}
+            onDirty={id => { dirtyMedia.current.add(id); setMediaCount(dirtyMedia.current.size); }}
+            onSave={saveSettings}
+            savedVersion={mediaSavedVersion}
           />
         ) : null}
 
-        <details className="mt-6 rounded-[34px] border border-white/10 bg-white/[0.035] p-5 sm:p-8">
-          <summary className="cursor-pointer list-none">
+        </div>
+        <section hidden={workspaceTab !== "settings"} className="mt-6 rounded-[34px] border border-white/10 bg-white/[0.035] p-5 sm:p-8">
+          <div>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="text-xs font-medium uppercase tracking-[0.18em] text-blue-400">Дополнительно</div>
-                <h2 className="mt-2 text-2xl font-bold tracking-[-0.04em]">Глобальные настройки сайта</h2>
-                <p className="mt-2 text-sm text-white/45">Логотипы, контакты, адреса и SEO. Обычно сюда заходят реже.</p>
+                <h2 className="mt-2 text-2xl font-bold tracking-[-0.04em]">Настройки магазина</h2>
+                <p className="mt-2 text-sm text-white/45">Эти данные используются на страницах магазина.</p>
               </div>
-              <span className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/60">Открыть настройки</span>
+              <span className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/60">Бренд · Контакты · Поиск</span>
             </div>
-          </summary>
+          </div>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
             {settingTabs.map((tab) => (
               <button
                 type="button"
                 key={tab.key}
-                onPointerDown={() => switchSettingsTab(tab.key)}
                 onClick={() => switchSettingsTab(tab.key)}
                 className={`rounded-2xl border p-4 text-left transition-all ${
                   activeSettingsTab === tab.key
@@ -560,6 +526,10 @@ export function SiteEditorForm({ initialSettings, initialPageBuilder, initialCon
               />
             )}
             {activeSettingsTab === "seo" && <SeoEditor settings={settings} updateSeo={updateSeo} />}
+            {activeSettingsTab === "display" && <div className="admin-legal-grid">{([
+              ["catalog", "Каталог", { showFilters: "Фильтры товаров", showBrandRows: "Группировка по брендам", showLoadMore: "Кнопка «Показать ещё»", showCategorySeoText: "Описание категории" }],
+              ["productPage", "Карточка товара", { showRelated: "Похожие товары", showAccessories: "С этим товаром покупают", showSpecs: "Характеристики", showSeoBlock: "Описание и история товара", showDeliveryWarranty: "Условия получения и гарантии", showProductFaq: "Отзывы и вопросы" }],
+            ] as const).map(([group, title, items]) => <div key={group}><h3 className="text-xl font-bold mb-5">{title}</h3>{Object.entries(items).map(([key, label]) => <label className="flex gap-3 items-center my-4" key={key}><input type="checkbox" checked={Boolean((settings[group] as unknown as Record<string, boolean>)[key])} onChange={e => setSettings(current => ({ ...current, [group]: { ...current[group], [key]: e.target.checked } }))}/>{label}</label>)}</div>)}</div>}
           </div>
 
           <button
@@ -568,9 +538,10 @@ export function SiteEditorForm({ initialSettings, initialPageBuilder, initialCon
             disabled={saveState === "saving"}
             className="mt-8 w-full rounded-2xl bg-blue-600 px-7 py-5 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saveState === "saving" ? "Сохраняю..." : "Сохранить глобальные настройки"}
+            {saveState === "saving" ? "Сохраняю..." : "Сохранить всё"}
           </button>
-        </details>
+        </section>
+        </fieldset>
 
         <AdminStyle />
       </div>
@@ -655,6 +626,7 @@ function ModuleInspector({
   disabled: boolean;
   contentLibrary: SiteContentLibrary;
 }) {
+  const fixed = !["home", "new"].includes(block.pageKey) && !["promo-banner", "support", "text-image", "product-carousel", "popular-products"].includes(block.type);
   return (
     <div>
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -687,22 +659,23 @@ function ModuleInspector({
             {block.enabled ? "Скрыть блок" : "Показать блок"}
           </button>
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => onMove("up")} disabled={disabled || first} className="admin-action-button disabled:opacity-35">
+            <button type="button" onClick={() => onMove("up")} disabled={disabled || fixed || first} className="admin-action-button disabled:opacity-35">
               ↑ Выше
             </button>
-            <button type="button" onClick={() => onMove("down")} disabled={disabled || last} className="admin-action-button disabled:opacity-35">
+            <button type="button" onClick={() => onMove("down")} disabled={disabled || fixed || last} className="admin-action-button disabled:opacity-35">
               ↓ Ниже
             </button>
           </div>
           <button type="button" onClick={onSave} disabled={disabled} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-50">
             Сохранить блок
           </button>
-          <button type="button" onClick={onDelete} disabled={disabled} className="rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-3 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/15 disabled:opacity-50">
+          <button type="button" onClick={onDelete} disabled={disabled || fixed} className="rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-3 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/15 disabled:opacity-50">
             Удалить блок
           </button>
         </div>
       </div>
 
+      {fixed && <p className="admin-inline-status">Основной блок страницы: его положение закреплено. Дополнительные баннеры и подборки можно переставлять.</p>}
       <div className="mt-7 grid gap-5 md:grid-cols-2">
         <Field label="Название в админке">
           <input value={block.title} onChange={(event) => onChange({ title: event.target.value })} className="admin-input" />
@@ -817,8 +790,8 @@ function ModuleSettings({ block, onSettingChange, contentLibrary }: { block: Sit
     );
   }
 
-  const hasTextFields = ["category-grid", "popular-products", "new-arrivals", "text-image", "product-carousel", "catalog-header", "catalog-empty", "support"].includes(block.type);
-  const hasButtonFields = ["category-grid", "popular-products", "new-arrivals", "product-carousel"].includes(block.type);
+  const hasTextFields = ["hero", "category-grid", "popular-products", "new-arrivals", "text-image", "product-carousel", "catalog-header", "catalog-empty", "support"].includes(block.type);
+  const hasButtonFields = ["hero", "category-grid", "popular-products", "new-arrivals", "product-carousel"].includes(block.type);
   const hasImageField = ["text-image"].includes(block.type);
   const hasLimitField = ["category-grid", "popular-products", "new-arrivals", "product-carousel", "related-products", "catalog-grid"].includes(block.type);
   const hasFilterField = block.type === "product-carousel";

@@ -34,16 +34,7 @@ export default async function Page() {
     (product) => product.slug !== "catalog"
   );
 
-  const configuredProducts = allProducts.filter((product) => {
-    const images = [
-      product.image,
-      ...(Array.isArray(product.images) ? product.images : []),
-    ]
-      .map((image) => String(image ?? "").trim())
-      .filter(Boolean);
-
-    return images.length > 0;
-  });
+  const configuredProducts = allProducts;
 
   const explicitNew = allProducts.filter((product) => product.isNew);
 
@@ -57,11 +48,11 @@ export default async function Page() {
       (product) => product.isPopular
     ),
     newArrivals:
-      explicitNew.length > 0 ? explicitNew : allProducts.slice(0, 3),
+      explicitNew,
     pageBlocks:
       pageBlocksResult.status === "fulfilled"
         ? pageBlocksResult.value
-        : [],
+        : undefined,
     siteSettings:
       siteSettingsResult.status === "fulfilled"
         ? siteSettingsResult.value

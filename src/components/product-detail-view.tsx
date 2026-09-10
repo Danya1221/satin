@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { usePageContent, PageExtras } from "@/components/page-content";
+import { useStoreSettings } from "@/components/store-settings";
 import Image from "@/components/store-image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
@@ -173,6 +175,8 @@ export function ProductDetailView({
  relatedProducts = [],
  similarProducts = [],
 }: ProductDetailViewProps) {
+ const content = usePageContent("product");
+ const site = useStoreSettings();
  const [selectedColor, setSelectedColor] = useState(
  selectedPosition?.color ?? "",
  );
@@ -841,7 +845,7 @@ export function ProductDetailView({
  </nav>
 
  <section className="store-detail-grid mt-4 grid grid-cols-1 items-start gap-4 sm:grid-cols-[52%_1fr] lg:mt-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
- <div className="flex h-full flex-col gap-4">
+ <div hidden={!content.visible("product-gallery")} className="flex h-full flex-col gap-4">
  <div className="store-detail-gallery card rounded-[28px] p-4 sm:rounded-[36px] sm:p-6">
  <div
  className="relative cursor-grab touch-pan-y select-none active:cursor-grabbing"
@@ -936,9 +940,9 @@ export function ProductDetailView({
  </div>
  </div>
 
- <div className="lg:sticky lg:top-6">
+ <div hidden={!content.visible("product-info")} className="lg:sticky lg:top-6">
  <div className="card rounded-[22px] p-3 sm:rounded-[36px] sm:p-8">
- <div className="text-[11px] sm:text-sm text-muted">{product.brand}</div>
+ <div hidden={content.settings("product-info").showBrand === false} className="text-[11px] sm:text-sm text-muted">{product.brand}</div>
 
  <h1 className="store-transaction-heading mt-1 text-[15px] font-bold leading-tight tracking-[-0.03em] sm:mt-2 sm:text-5xl">
  {product.name}
@@ -950,7 +954,7 @@ export function ProductDetailView({
 
  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted sm:mt-3 sm:text-sm">
  <span>
- {activePosition ? `SKU: ${activePosition.sku}` : `Модель: ${product.slug}`}
+ {content.settings("product-info").showSku !== false && (activePosition ? `Артикул: ${activePosition.sku}` : `Модель: ${product.slug}`)}
  </span>
  {activePosition ? (
  <>
@@ -1462,9 +1466,9 @@ export function ProductDetailView({
  </div>
  </section>
 
- {hasProductStory(product) ? <ProductStory product={product} /> : null}
+ {content.visible("product-description") && content.settings("product-description").showDescriptionBlocks !== false && site?.productPage?.showSeoBlock !== false && hasProductStory(product) ? <ProductStory product={product} /> : null}
 
- {relatedProducts.length > 0 ? (
+ {site?.productPage?.showAccessories !== false && relatedProducts.length > 0 ? (
  <section className="mt-6 sm:mt-10">
  <ProductStrip title="С этим товаром покупают" products={relatedProducts} />
  </section>
@@ -1481,12 +1485,13 @@ export function ProductDetailView({
  sku={detailsPosition?.sku || "Будет выбран после конфигурации"}
  description={product.description}
  shortDescription={product.shortDescription}
- benefits={benefits}
+ benefits={site?.productPage?.showDeliveryWarranty === false ? [] : benefits}
  />
  </section>
 
  <section
  id="product-community"
+ hidden={site?.productPage?.showProductFaq === false}
  className="mt-6 scroll-mt-24 rounded-[24px] border border-theme bg-white sm:mt-10 sm:rounded-[36px]"
  >
  <div className="border-b border-theme p-4 sm:p-7">
@@ -1547,7 +1552,7 @@ export function ProductDetailView({
  </div>
 
  <div className="mt-5 flex gap-2 overflow-x-auto">
- {product.characteristics ? (
+ {site?.productPage?.showSpecs !== false && product.characteristics ? (
  <button
  type="button"
  onClick={() => setShowCharacteristics(!showCharacteristics)}
@@ -1588,7 +1593,7 @@ export function ProductDetailView({
  </div>
 
  <div className="p-4 sm:p-7">
- {showCharacteristics && product.characteristics ? (
+ {site?.productPage?.showSpecs !== false && showCharacteristics && product.characteristics ? (
  <div className="mb-8">
  <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
  {product.characteristics.split('\n').filter(line => line.trim()).map((char, index) => (
@@ -1889,11 +1894,12 @@ export function ProductDetailView({
  </div>
  </section>
 
- {similarProducts.length > 0 ? (
+ {content.visible("related-products") && site?.productPage?.showRelated !== false && similarProducts.length > 0 ? (
  <section className="mb-8 mt-6 sm:mb-10 sm:mt-10">
- <ProductStrip title="Похожие товары" products={similarProducts} />
+ <ProductStrip title={content.text("related-products", "title", "Похожие товары")} products={similarProducts.slice(0, Math.max(0, Math.min(48, Number(content.settings("related-products").limit) || 8)))} />
  </section>
  ) : null}
+ <PageExtras content={content} />
  <SiteFooter />
  </div>
  </main>

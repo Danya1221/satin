@@ -1,34 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthSecret } from "@/lib/auth-config";
 
-type AdminRole = "owner" | "admin" | "manager" | "content" | "support";
-type AdminSection =
-  | "dashboard"
-  | "orders"
-  | "customers"
-  | "products"
-  | "positions"
-  | "categories"
-  | "support"
-  | "site-editor"
-  | "settings"
-  | "staff";
-
+import type { AdminRole } from "@/lib/auth";
+import { adminSectionAccess as accessMap, getAdminSection as getSection, type AdminSection } from "@/lib/admin-policy";
 const AUTH_COOKIE_NAME = "netizen_session";
 const allRoles: AdminRole[] = ["owner", "admin", "manager", "content", "support"];
-
-const accessMap: Record<AdminSection, AdminRole[]> = {
-  dashboard: allRoles,
-  orders: ["owner", "admin", "manager"],
-  customers: ["owner", "admin", "manager"],
-  products: ["owner", "admin", "content"],
-  positions: ["owner", "admin", "manager", "content"],
-  categories: ["owner", "admin", "content"],
-  support: ["owner", "admin", "manager", "support"],
-  "site-editor": ["owner", "admin", "content"],
-  settings: ["owner"],
-  staff: ["owner"],
-};
 
 function base64UrlToUint8Array(value: string) {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -101,20 +77,6 @@ function normalizeRoles(session: Awaited<ReturnType<typeof readSession>>): Admin
   const roles = source.filter((role): role is AdminRole => allRoles.includes(role as AdminRole));
 
   return Array.from(new Set(roles.length ? roles : ["manager"]));
-}
-
-function getSection(pathname: string): AdminSection {
-  if (pathname.startsWith("/nz-console/settings") || pathname.startsWith("/api/admin/staff")) return "settings";
-  if (pathname.startsWith("/nz-console/site-editor")) return "site-editor";
-  if (pathname.startsWith("/api/admin/page-blocks") || pathname.startsWith("/api/admin/site-banners") || pathname.startsWith("/api/admin/site-benefits") || pathname.startsWith("/api/admin/site-settings")) return "site-editor";
-  if (pathname.startsWith("/nz-console/orders") || pathname.startsWith("/api/admin/orders")) return "orders";
-  if (pathname.startsWith("/nz-console/users")) return "customers";
-  if (pathname.startsWith("/nz-console/support")) return "support";
-  if (pathname.startsWith("/nz-console/categories") || pathname.startsWith("/api/admin/categories")) return "categories";
-  if (pathname.startsWith("/nz-console/positions") || pathname.startsWith("/api/admin/positions") || pathname.includes("/variants")) return "positions";
-  if (pathname.startsWith("/nz-console/products") || pathname.startsWith("/api/admin/products")) return "products";
-
-  return "dashboard";
 }
 
 function hasSectionAccess(roles: AdminRole[], section: AdminSection) {

@@ -24,8 +24,8 @@ async function requireSection(section: "settings" | "site-editor") {
 }
 
 export async function GET(request: NextRequest) {
-  const scope = request.nextUrl.searchParams.get("scope") ?? "all";
-  const section = scope === "system" ? "settings" : "site-editor";
+  const scope = request.nextUrl.searchParams.get("scope") ?? "site";
+  const section = scope === "site" ? "site-editor" : "settings";
 
   if (!(await requireSection(section))) {
     return denied();
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const scope = body?.scope;
-  const section = scope === "system" ? "settings" : "site-editor";
+  const section = scope === "site" ? "site-editor" : "settings";
 
   if (!(await requireSection(section))) {
     return denied();

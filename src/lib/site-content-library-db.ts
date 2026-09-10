@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { publicImageUrl } from "@/lib/public-image-urls";
 
@@ -245,8 +246,8 @@ export async function createSiteBanner(input?: BannerInput) {
   return toBanner(banner);
 }
 
-export async function updateSiteBanner(id: string, input: BannerInput) {
-  const banner = await prisma.siteBanner.update({
+export async function updateSiteBanner(id: string, input: BannerInput, db: Pick<Prisma.TransactionClient, "siteBanner"> = prisma) {
+  const banner = await db.siteBanner.update({
     where: { id },
     data: {
       ...(input.adminTitle !== undefined ? { adminTitle: cleanText(input.adminTitle, "Новый баннер") || "Новый баннер" } : {}),
@@ -258,9 +259,9 @@ export async function updateSiteBanner(id: string, input: BannerInput) {
       ...(input.buttonHref !== undefined ? { buttonHref: cleanText(input.buttonHref, "/catalog") || "/catalog" } : {}),
       ...(input.secondaryButtonText !== undefined ? { secondaryButtonText: cleanText(input.secondaryButtonText) } : {}),
       ...(input.secondaryButtonHref !== undefined ? { secondaryButtonHref: cleanText(input.secondaryButtonHref) } : {}),
-      ...(input.imageLight !== undefined ? { imageLight: cleanText(input.imageLight) } : {}),
-      ...(input.imageDark !== undefined ? { imageDark: cleanText(input.imageDark) } : {}),
-      ...(input.imageMobile !== undefined ? { imageMobile: cleanText(input.imageMobile) } : {}),
+      ...(input.imageLight !== undefined && !cleanText(input.imageLight).startsWith(`/api/public-image/banner/${id}/imageLight`) ? { imageLight: cleanText(input.imageLight) } : {}),
+      ...(input.imageDark !== undefined && !cleanText(input.imageDark).startsWith(`/api/public-image/banner/${id}/imageDark`) ? { imageDark: cleanText(input.imageDark) } : {}),
+      ...(input.imageMobile !== undefined && !cleanText(input.imageMobile).startsWith(`/api/public-image/banner/${id}/imageMobile`) ? { imageMobile: cleanText(input.imageMobile) } : {}),
       ...(input.placement !== undefined ? { placement: cleanText(input.placement, "manual") || "manual" } : {}),
       ...(input.tone !== undefined ? { tone: cleanText(input.tone, "blue") || "blue" } : {}),
       ...(input.layout !== undefined ? { layout: cleanText(input.layout, "split") || "split" } : {}),
@@ -295,8 +296,8 @@ export async function createSiteBenefit(input?: BenefitInput) {
   return toRawBenefit(benefit);
 }
 
-export async function updateSiteBenefit(id: string, input: BenefitInput) {
-  const benefit = await prisma.siteBenefit.update({
+export async function updateSiteBenefit(id: string, input: BenefitInput, db: Pick<Prisma.TransactionClient, "siteBenefit"> = prisma) {
+  const benefit = await db.siteBenefit.update({
     where: { id },
     data: {
       ...(input.title !== undefined ? { title: cleanText(input.title, "Новое преимущество") || "Новое преимущество" } : {}),

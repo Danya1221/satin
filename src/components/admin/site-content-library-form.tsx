@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 
 import { ImageDropZone } from "@/components/admin/image-drop-zone";
 import type { SiteBanner, SiteBenefit, SiteContentLibrary } from "@/lib/site-content-library-db";
@@ -12,6 +12,9 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 type Props = {
   initialLibrary: SiteContentLibrary;
   onChange?: (library: SiteContentLibrary) => void;
+  onDirty?: (id: string) => void;
+  onSave?: () => Promise<boolean>;
+  savedVersion?: number;
 };
 
 const emptyBanner: Omit<SiteBanner, "id" | "createdAt" | "updatedAt"> = {
@@ -47,12 +50,15 @@ const emptyBenefit: Omit<SiteBenefit, "id" | "createdAt" | "updatedAt"> = {
   sortOrder: 100,
 };
 
-export function SiteContentLibraryForm({ initialLibrary, onChange }: Props) {
+export function SiteContentLibraryForm({ initialLibrary, onChange, onDirty, onSave, savedVersion = 0 }: Props) {
+  const dirtyIds = useRef(new Set<string>());
+  const previousVersion = useRef(savedVersion);
   const [library, setLibrary] = useState(initialLibrary);
   const [tab, setTab] = useState<LibraryTab>("banners");
   const [selectedBannerId, setSelectedBannerId] = useState(initialLibrary.banners[0]?.id ?? "");
   const [selectedBenefitId, setSelectedBenefitId] = useState(initialLibrary.benefits[0]?.id ?? "");
   const [state, setState] = useState<SaveState>("idle");
+  useEffect(() => { if (previousVersion.current !== savedVersion) { previousVersion.current = savedVersion; dirtyIds.current.clear(); setLibrary(initialLibrary); } }, [savedVersion, initialLibrary]);
 
   const selectedBanner = library.banners.find((banner) => banner.id === selectedBannerId) ?? library.banners[0] ?? null;
   const activeBenefitPlacement = tab === "product" ? "product" : "store";
@@ -70,6 +76,7 @@ export function SiteContentLibraryForm({ initialLibrary, onChange }: Props) {
   }
 
   function updateBanner(id: string, patch: Partial<SiteBanner>) {
+    dirtyIds.current.add(id); onDirty?.(id);
     updateLibrary({
       ...library,
       banners: library.banners.map((banner) => (banner.id === id ? { ...banner, ...patch } : banner)),
@@ -77,6 +84,7 @@ export function SiteContentLibraryForm({ initialLibrary, onChange }: Props) {
   }
 
   function updateBenefit(id: string, patch: Partial<SiteBenefit>) {
+    dirtyIds.current.add(id); onDirty?.(id);
     updateLibrary({
       ...library,
       benefits: library.benefits.map((benefit) => (benefit.id === id ? { ...benefit, ...patch } : benefit)),
@@ -96,6 +104,8 @@ export function SiteContentLibraryForm({ initialLibrary, onChange }: Props) {
       benefits: Array.isArray(benefitsPayload.benefits) ? benefitsPayload.benefits : [],
     };
 
+    next.banners = next.banners.map((item: SiteBanner) => dirtyIds.current.has(item.id) ? library.banners.find(local => local.id === item.id) ?? item : item);
+    next.benefits = next.benefits.map((item: SiteBenefit) => dirtyIds.current.has(item.id) ? library.benefits.find(local => local.id === item.id) ?? item : item);
     updateLibrary(next);
     if (!selectedBannerId && next.banners[0]) setSelectedBannerId(next.banners[0].id);
     if (!selectedBenefitId && next.benefits[0]) setSelectedBenefitId(next.benefits[0].id);
@@ -146,6 +156,7 @@ export function SiteContentLibraryForm({ initialLibrary, onChange }: Props) {
 
   async function saveBanner(banner: SiteBanner) {
     setState("saving");
+    if (onSave) { setState(await onSave() ? "saved" : "error"); return; }
     const response = await fetch(`/api/admin/site-banners/${banner.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -157,6 +168,7 @@ export function SiteContentLibraryForm({ initialLibrary, onChange }: Props) {
       return;
     }
 
+    dirtyIds.current.delete(banner.id);
     await refreshLibrary();
     setState("saved");
     window.setTimeout(() => setState("idle"), 1800);
@@ -164,6 +176,7 @@ export function SiteContentLibraryForm({ initialLibrary, onChange }: Props) {
 
   async function saveBenefit(benefit: SiteBenefit) {
     setState("saving");
+    if (onSave) { setState(await onSave() ? "saved" : "error"); return; }
     const response = await fetch(`/api/admin/site-benefits/${benefit.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -175,6 +188,7 @@ export function SiteContentLibraryForm({ initialLibrary, onChange }: Props) {
       return;
     }
 
+    dirtyIds.current.delete(benefit.id);
     await refreshLibrary();
     setState("saved");
     window.setTimeout(() => setState("idle"), 1800);
@@ -190,6 +204,7 @@ export function SiteContentLibraryForm({ initialLibrary, onChange }: Props) {
       return;
     }
 
+    dirtyIds.current.delete(banner.id);
     await refreshLibrary();
     setSelectedBannerId("");
     setState("saved");
@@ -206,6 +221,7 @@ export function SiteContentLibraryForm({ initialLibrary, onChange }: Props) {
       return;
     }
 
+    dirtyIds.current.delete(benefit.id);
     await refreshLibrary();
     setSelectedBenefitId("");
     setState("saved");

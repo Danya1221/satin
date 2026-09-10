@@ -11,8 +11,10 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminCategoriesPage() {
-  const categories = await getAdminCategoriesDetailed();
+export default async function AdminCategoriesPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
+  const query = await searchParams;
+  const allCategories = await getAdminCategoriesDetailed();
+  const categories = allCategories.filter(category => (!query.q || `${category.name} ${category.slug}`.toLocaleLowerCase("ru").includes(query.q.toLocaleLowerCase("ru"))) && (!query.status || category.status === query.status));
   const activeCount = categories.filter((category) => category.status === "active").length;
   const productsCount = categories.reduce((sum, category) => sum + category.productsCount, 0);
 
@@ -52,7 +54,7 @@ export default async function AdminCategoriesPage() {
               </h1>
 
               <p className="mt-4 max-w-[760px] text-sm leading-relaxed text-white/55">
-                Здесь категории уже не макет: список приходит из PostgreSQL, а публичный каталог показывает только активные категории из этой же таблицы.
+                Создавайте категории, добавляйте фотографии и меняйте порядок на витрине.
               </p>
             </div>
 
@@ -71,21 +73,7 @@ export default async function AdminCategoriesPage() {
           <MetricCard label="Товаров в категориях" value={String(productsCount)} />
         </section>
 
-        <section className="mt-8 rounded-[28px] border border-white/10 bg-white/[0.035] p-5">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <p className="text-sm leading-relaxed text-white/55">
-              Поиск и фильтры на этой странице можно добавить следующим шагом. Сейчас главное — рабочий CRUD и связь с БД.
-            </p>
-
-            <Link
-              href="/nz-console/categories/new"
-              className="rounded-xl bg-blue-600 px-6 py-3 text-center text-sm font-medium text-white transition-colors hover:bg-blue-500"
-            >
-              Добавить категорию
-            </Link>
-          </div>
-        </section>
-
+        <form className="admin-panel mt-6 flex flex-wrap gap-3" action="/nz-console/categories"><input type="search" name="q" defaultValue={query.q} placeholder="Название или адрес категории" aria-label="Поиск категорий" className="flex-1"/><select name="status" defaultValue={query.status || ""} aria-label="Статус"><option value="">Все статусы</option><option value="active">Активные</option><option value="hidden">Скрытые</option><option value="draft">Черновики</option></select><button className="admin-primary-button" type="submit">Найти</button><Link className="admin-secondary-button" href="/nz-console/categories">Сбросить</Link></form>
         <section className="mt-6 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.035]">
           <div className="hidden grid-cols-[1fr_0.75fr_1.25fr_0.55fr_0.55fr_0.45fr_160px] border-b border-white/10 bg-black/25 px-5 py-4 text-sm text-white/45 lg:grid">
             <div>Название</div>
@@ -100,7 +88,7 @@ export default async function AdminCategoriesPage() {
           <div className="divide-y divide-white/10">
             {categories.length === 0 ? (
               <div className="p-8 text-sm leading-relaxed text-white/55">
-                Категорий в базе пока нет. Создай первую категорию или запусти seed: <span className="font-semibold text-white">npm run db:seed</span>.
+                Категории не найдены. Измените поиск или добавьте новую категорию.
               </div>
             ) : (
               categories.map((category) => (
@@ -149,7 +137,7 @@ export default async function AdminCategoriesPage() {
                       Изменить
                     </Link>
                     <Link
-                      href={`/catalog/${category.slug}`}
+                      href={`/catalog/${encodeURIComponent(category.slug)}`}
                       className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-white/55 transition-colors hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-white"
                     >
                       На сайте
@@ -162,19 +150,7 @@ export default async function AdminCategoriesPage() {
           </div>
         </section>
 
-        <section className="my-8 rounded-[28px] border border-blue-500/25 bg-blue-500/10 p-6">
-          <div className="text-sm font-medium uppercase tracking-[0.2em] text-blue-400">
-            Готово к БД
-          </div>
 
-          <h2 className="mt-3 text-2xl font-bold tracking-[-0.035em]">
-            Категории теперь управляются из админки
-          </h2>
-
-          <p className="mt-3 max-w-[980px] text-sm leading-relaxed text-white/55">
-            Создание, редактирование и скрытие идут через API /api/admin/categories. На публичной части используются только категории со статусом «Активна».
-          </p>
-        </section>
       </div>
     </main>
   );

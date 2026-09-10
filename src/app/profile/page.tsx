@@ -2,6 +2,7 @@
 
 import { BackLink } from "@/components/back-link";
 import Link from "next/link";
+import { usePageContent, PageExtras } from "@/components/page-content";
 import Image from "@/components/store-image";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -203,6 +204,7 @@ function formatMemberSince(value: string) {
 }
 
 export default function ProfilePage() {
+ const content = usePageContent("profile");
  const [isLoaded, setIsLoaded] = useState(false);
  const [isAuthenticated, setIsAuthenticated] = useState(false);
  const [profile, setProfile] = useState<CustomerProfile>(emptyProfile);
@@ -486,6 +488,7 @@ export default function ProfilePage() {
  </div>
  </div>
  </section>
+ <PageExtras content={content} />
  <SiteFooter />
  </div>
  </main>
@@ -710,13 +713,13 @@ export default function ProfilePage() {
 
  <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
  <div className="grid gap-4">
- <section className="card rounded-[24px] p-4 sm:p-5">
+ <section hidden={!content.visible("profile-orders")} className="card rounded-[24px] p-4 sm:p-5">
  <div className="flex items-center justify-between gap-4">
  <div>
  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-500">
  Заказы
  </div>
- <h2 className="mt-1 text-xl font-bold sm:text-2xl">Последние заявки</h2>
+ <h2 className="mt-1 text-xl font-bold sm:text-2xl">{content.text("profile-orders", "title", "Заказы")}</h2>
  </div>
 
  <Link href="/cart" className="inline-flex min-h-9 items-center justify-center rounded-xl border border-theme bg-card px-3.5 py-2 text-xs font-semibold text-main transition-colors hover:border-blue-500/40 hover:bg-blue-soft hover:text-blue-500">
@@ -813,13 +816,13 @@ export default function ProfilePage() {
  )}
  </section>
 
- <section className="card rounded-[24px] p-4 sm:p-5">
+ <section hidden={!content.visible("profile-support")} className="card rounded-[24px] p-4 sm:p-5">
  <div className="flex items-center justify-between gap-4">
  <div>
  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-500">
  Поддержка
  </div>
- <h2 className="mt-1 text-xl font-bold sm:text-2xl">Последние обращения</h2>
+ <h2 className="mt-1 text-xl font-bold sm:text-2xl">{content.text("profile-support", "title", "Обращения")}</h2>
  </div>
 
  <Link href="/help" className="inline-flex min-h-9 items-center justify-center rounded-xl border border-theme bg-card px-3.5 py-2 text-xs font-semibold text-main transition-colors hover:border-blue-500/40 hover:bg-blue-soft hover:text-blue-500">
@@ -855,13 +858,13 @@ export default function ProfilePage() {
  </div>
 
  <aside className="grid content-start gap-4">
- <section className="card rounded-[24px] p-4 sm:p-5">
+ <section hidden={!content.visible("profile-addresses")} className="card rounded-[24px] p-4 sm:p-5">
  <div className="flex items-center justify-between gap-3">
  <div>
  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-500">
  Доставка
  </div>
- <h2 className="mt-1 text-xl font-bold">Адреса</h2>
+ <h2 className="mt-1 text-xl font-bold">{content.text("profile-addresses", "title", "Адреса")}</h2>
  </div>
  <span className="rounded-full bg-blue-soft px-2.5 py-1 text-xs text-muted">
  {addresses.length}
@@ -947,6 +950,7 @@ export default function ProfilePage() {
  Данные сохранены
  </div>
  ) : null}
+ <PageExtras content={content} />
  <SiteFooter />
  </div>
 

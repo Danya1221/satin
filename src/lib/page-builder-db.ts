@@ -71,7 +71,7 @@ export const builderPages: BuilderPage[] = [
   {
     key: "home",
     title: "Главная",
-    description: "Hero, категории, популярные товары, новинки и промо-блоки.",
+    description: "Баннер, категории, подборки товаров и помощь.",
   },
   {
     key: "catalog",
@@ -108,8 +108,8 @@ export const builderPages: BuilderPage[] = [
 export const moduleLibrary: ModuleDefinition[] = [
   {
     type: "hero",
-    title: "Hero",
-    description: "Главный первый экран. Пока использует текущий дизайн сайта.",
+    title: "Главный экран",
+    description: "Главный баннер, заголовок и кнопка.",
     pageKeys: ["home"],
     defaultSettings: { title: "", subtitle: "", buttonText: "", buttonHref: "" },
   },
@@ -129,7 +129,7 @@ export const moduleLibrary: ModuleDefinition[] = [
   {
     type: "category-grid",
     title: "Категории",
-    description: "Сетка категорий из БД с фото категории.",
+    description: "Категории магазина с фотографиями.",
     pageKeys: ["home", "catalog"],
     defaultSettings: {
       title: "Выберите категорию",
@@ -480,25 +480,15 @@ function toBlock(block: {
 }
 
 export async function ensureDefaultPageBlocks(pageKey?: PageKey) {
-  const pages = pageKey ? [pageKey] : builderPages.map((page) => page.key);
-
+  const pages = pageKey ? [pageKey] : builderPages.map(page => page.key);
   for (const key of pages) {
-    const count = await prisma.pageBlock.count({ where: { pageKey: key } });
-
-    if (count > 0) {
-      continue;
-    }
-
-    await prisma.pageBlock.createMany({
-      data: defaultPageBlocks[key].map((block) => ({
-        pageKey: block.pageKey,
-        type: block.type,
-        title: block.title,
-        description: block.description,
-        enabled: block.enabled,
-        sortOrder: block.sortOrder,
-        settings: block.settings as Prisma.InputJsonValue,
-      })),
+    const marker = `page-blocks-initialized:${key}`;
+    if (await prisma.siteSetting.findUnique({ where: { key: marker } })) continue;
+    await prisma.$transaction(async tx => {
+      if (!(await tx.pageBlock.count({ where: { pageKey: key } }))) {
+        await tx.pageBlock.createMany({ data: defaultPageBlocks[key].map(block => ({ ...block, settings: block.settings as Prisma.InputJsonValue })) });
+      }
+      await tx.siteSetting.upsert({ where: { key: marker }, create: { key: marker, value: true }, update: {} });
     });
   }
 }

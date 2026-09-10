@@ -1,5 +1,7 @@
 import "server-only";
 
+import { categoryPath, decodeRouteSegment } from "@/lib/route-paths";
+
 import { prisma } from "@/lib/db";
 
 export type PublicCategory = {
@@ -27,7 +29,7 @@ export async function getPublicCategoriesFromDb(): Promise<PublicCategory[]> {
     name: category.name,
     description: category.description,
     image: category.image ?? "",
-    href: `/catalog/${category.slug}`,
+    href: categoryPath(category.slug),
     seoTitle: category.seoTitle,
     seoDescription: category.seoDescription,
   }));
@@ -36,7 +38,7 @@ export async function getPublicCategoriesFromDb(): Promise<PublicCategory[]> {
 export async function getPublicCategoryBySlug(slug: string): Promise<PublicCategory | null> {
   const category = await prisma.category.findFirst({
     where: {
-      slug,
+      slug: decodeRouteSegment(slug),
       status: "active",
     },
   });
@@ -51,7 +53,7 @@ export async function getPublicCategoryBySlug(slug: string): Promise<PublicCateg
     name: category.name,
     description: category.description,
     image: category.image ?? "",
-    href: `/catalog/${category.slug}`,
+    href: categoryPath(category.slug),
     seoTitle: category.seoTitle,
     seoDescription: category.seoDescription,
   };

@@ -57,7 +57,7 @@ export default async function CatalogCategoryPage({
 
   return (
     <CatalogView
-      categoryId={category}
+      categoryId={activeCategory.slug}
       productsData={catalog.products}
       positionsData={catalog.positions}
       categoriesData={catalog.categories}
