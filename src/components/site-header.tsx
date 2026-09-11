@@ -31,6 +31,9 @@ export function SiteHeader() {
   const [authOpen, setAuthOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const phoneRoot = useRef<HTMLDivElement>(null);
+  const phoneButton = useRef<HTMLButtonElement>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [results, setResults] = useState<SearchProduct[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,6 +43,9 @@ export function SiteHeader() {
   const name = site?.branding?.storeName?.trim() || "Магазин техники";
   const logo = dark ? site?.branding?.logoLight : site?.branding?.logoDark;
   const phone = storeContact(site?.contacts?.phone);
+  const contactPhone = site?.contacts?.phone?.trim() || "";
+  const phoneHref = `tel:${contactPhone.replace(/[^\d+]/g, "")}`;
+  const phoneText = site?.contacts?.phoneText?.trim() || site?.contacts?.workingHours?.trim() || "";
   const accountHref = authUser?.role === "admin" ? "/nz-console" : "/profile";
 
   useEffect(() => {
@@ -50,6 +56,7 @@ export function SiteHeader() {
   useEffect(() => {
     setQuery(new URLSearchParams(window.location.search).get("search") ?? "");
     setSearchOpen(false);
+    setPhoneOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -96,7 +103,10 @@ export function SiteHeader() {
   }, []);
 
   useEffect(() => {
-    const outside = (event: PointerEvent) => { if (!searchRoot.current?.contains(event.target as Node)) setSearchOpen(false); };
+    const outside = (event: PointerEvent) => {
+      if (!searchRoot.current?.contains(event.target as Node)) setSearchOpen(false);
+      if (!phoneRoot.current?.contains(event.target as Node)) setPhoneOpen(false);
+    };
     document.addEventListener("pointerdown", outside);
     return () => document.removeEventListener("pointerdown", outside);
   }, []);
@@ -151,7 +161,7 @@ export function SiteHeader() {
         }} onBlur={event => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}>
           <form className="store-search" role="search" onSubmit={submit}>
             <StoreIcon name="search" />
-            <input ref={searchInput} value={query} onChange={event => { setQuery(event.target.value); setSearchOpen(true); }} onFocus={() => setSearchOpen(true)} aria-label="Поиск товаров" aria-controls={searchOpen ? "store-search-results" : undefined} placeholder="Найти то самое" autoComplete="off" type="search" />
+            <input ref={searchInput} value={query} onChange={event => { setQuery(event.target.value); setSearchOpen(true); setPhoneOpen(false); }} onFocus={() => { setSearchOpen(true); setPhoneOpen(false); }} aria-label="Поиск товаров" aria-controls={searchOpen ? "store-search-results" : undefined} placeholder="Найти то самое" autoComplete="off" type="search" />
             {query && <button type="button" aria-label="Очистить поиск" onClick={() => { setQuery(""); searchInput.current?.focus(); }}><StoreIcon name="close" /></button>}
             <button type="submit" aria-label="Найти товары"><StoreIcon name="arrow" /></button>
           </form>
@@ -173,6 +183,19 @@ export function SiteHeader() {
         </div>
         <div className="store-header-actions">
           <button type="button" className="store-header-action" onClick={toggleTheme} aria-label={dark ? "Включить светлую тему" : "Включить тёмную тему"}><StoreIcon name={dark ? "sun" : "moon"} /><span>Тема</span></button>
+          <div ref={phoneRoot} className="store-phone" onBlur={event => {
+            if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setPhoneOpen(false);
+          }} onKeyDown={event => {
+            if (event.key === "Escape" && phoneOpen) { event.preventDefault(); setPhoneOpen(false); phoneButton.current?.focus(); }
+          }}>
+            <button ref={phoneButton} type="button" className="store-header-action store-phone-button" aria-label="Телефон магазина" aria-expanded={phoneOpen} aria-controls="store-phone-contact" onClick={() => { setPhoneOpen(open => !open); setSearchOpen(false); }}>
+              <StoreIcon name="phone" /><span>Позвонить</span>
+            </button>
+            {phoneOpen && <section className="store-phone-panel" id="store-phone-contact" aria-label="Связь с магазином">
+              <div className="store-phone-panel-heading"><strong>Связь с магазином</strong><button type="button" className="store-phone-close" aria-label="Закрыть номер телефона" onClick={() => { setPhoneOpen(false); phoneButton.current?.focus(); }}><StoreIcon name="close" /></button></div>
+              {contactPhone ? <><a className="store-phone-number" href={phoneHref}>{contactPhone}</a>{phoneText && <p>{phoneText}</p>}<a className="store-button store-phone-call" href={phoneHref}><StoreIcon name="phone" />Позвонить</a></> : <><p>Номер телефона пока не опубликован. Напишите нам в поддержку.</p><Link className="store-button store-phone-call" href="/help" onClick={() => setPhoneOpen(false)}>Написать в поддержку</Link></>}
+            </section>}
+          </div>
           <Link href="/favorites" className="store-header-action store-header-favorite" aria-label="Избранное"><StoreIcon name="heart" /><span>Избранное</span></Link>
           {authUser ? <Link href={accountHref} className="store-header-action" aria-label={authUser.role === "admin" ? "Админ-панель" : "Личный кабинет"}><StoreIcon name="user" /><span>Кабинет</span></Link> : <button type="button" className="store-header-action" onClick={() => { setAuthMode("login"); setAuthOpen(true); }} aria-label="Войти в аккаунт"><StoreIcon name="user" /><span>Войти</span></button>}
           <Link href="/cart" className="store-header-action store-header-cart" aria-label={`Корзина${cartCount ? `, товаров: ${cartCount}` : ""}`}><StoreIcon name="bag" /><span>Корзина</span>{cartCount > 0 && <span className="store-count">{cartCount > 99 ? "99+" : cartCount}</span>}</Link>
