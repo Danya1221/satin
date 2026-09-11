@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { deliveryQuote, normalizeDeliverySettings } from "@/lib/delivery-settings";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { validateConsent } from "@/lib/legal-db";
 import { NextResponse } from "next/server";
@@ -26,6 +28,7 @@ type IncomingOrderItem = {
 };
 
 type IncomingOrderBody = {
+  checkoutKey?: string;
   consent?: { accepted?: boolean; version?: string; offerAccepted?: boolean };
   customer?: {
     name?: string;
@@ -34,6 +37,8 @@ type IncomingOrderBody = {
   };
   delivery?: {
     method?: "courier" | "pickup" | null;
+    deliveryKey?: string;
+    zoneId?: string;
     city?: string;
     address?: string;
     savedAddress?: string;
@@ -97,14 +102,19 @@ export async function POST(request: Request) {
     // E-mail is optional. Legacy/incorrect profile values must not block checkout.
     const email = rawEmail ? normalizeEmailStrict(rawEmail) : "";
     const deliveryMethod = body.delivery?.method === "pickup" ? "pickup" : "courier";
+    const carrier = deliveryMethod === "pickup" ? "pickup" : body.delivery?.deliveryKey === "cdek" ? "cdek" : "courier";
+    const savedDeliverySettings = await prisma.siteSetting.findUnique({where:{key:"delivery-zones"}});
+    const deliveryCost = deliveryQuote(normalizeDeliverySettings(savedDeliverySettings?.value),carrier,body.delivery?.zoneId);
+    const checkoutKey = typeof body.checkoutKey === "string" && /^[a-f0-9-]{36}$/i.test(body.checkoutKey) ? createHash("sha256").update(`${body.checkoutKey}:${phone}`).digest("hex") : null;
+    if(checkoutKey) { const previous = await prisma.order.findUnique({where:{checkoutKey},select:{id:true,publicId:true,total:true}}); if(previous) return NextResponse.json({ok:true,order:previous}); }
     const city = normalizeText(body.delivery?.city);
     const rawAddress = normalizeText(body.delivery?.savedAddress) || normalizeText(body.delivery?.address);
     const addressValidation =
       deliveryMethod === "courier"
-        ? validateCourierAddress(city, rawAddress)
+        ? carrier === "cdek" ? {ok: Boolean(city || rawAddress), message:"Укажите город для СДЭК.", normalized:[city,rawAddress].filter(Boolean).join(", ")} : validateCourierAddress(city, rawAddress)
         : { ok: true as const, message: "", normalized: "" };
     const address = deliveryMethod === "courier" ? addressValidation.normalized : "";
-    const pickupPoint = deliveryMethod === "pickup" ? rawAddress || "ПВЗ Neontech" : "";
+    const pickupPoint = deliveryMethod === "pickup" ? rawAddress || "Самовывоз" : "";
     const comment = normalizeText(body.comment);
     const incomingItems = Array.isArray(body.items) ? body.items : [];
 
@@ -276,6 +286,11 @@ export async function POST(request: Request) {
           phone,
           email,
           deliveryType: deliveryMethod,
+          deliveryCarrier: carrier,
+          deliveryZone: deliveryCost.zone,
+          deliveryFee: deliveryCost.fee,
+          checkoutKey,
+          paymentMethod: "manager",
           address,
           pickupPoint,
           subtotal: quote.subtotal,
@@ -283,7 +298,7 @@ export async function POST(request: Request) {
           promoDiscount: quote.promoDiscount,
           promoCode: quote.promoCode,
           discountTotal: quote.discountTotal,
-          total: quote.total,
+          total: quote.total + (deliveryCost.fee ?? 0),
           comment,
           status: initialStatus,
           items: {

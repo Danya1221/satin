@@ -28,12 +28,12 @@ export async function generateMetadata({
 
   if (!data) {
     return {
-      title: "Товар не найден — Neontech",
+      title: "Товар не найден",
     };
   }
 
   return {
-    title: `${data.product.name} — купить в Neontech`,
+    title: `${data.product.name} — заказать`,
     description: data.product.shortDescription || data.product.description,
   };
 }
@@ -54,8 +54,9 @@ export default async function ProductPage({
     notFound();
   }
 
-  const selectedPosition = sku
-    ? data.positions.find((position) => position.sku === sku)
+  const requestedSku = sku || data.resolvedSku;
+  const selectedPosition = requestedSku
+    ? data.positions.find((position) => position.sku === requestedSku)
     : undefined;
   const benefits = await getSiteBenefits({
     activeOnly: true,

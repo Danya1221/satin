@@ -1,5 +1,6 @@
 "use client";
 
+import { ImageDropZone } from "@/components/admin/image-drop-zone";
 import { BackLink } from "@/components/back-link";
 import Link from "next/link";
 import { SiteContentLibraryForm } from "@/components/admin/site-content-library-form";
@@ -255,6 +256,7 @@ export function SiteEditorForm({ initialSettings, initialPageBuilder, initialCon
     }).catch(() => null);
     const payload = await response?.json().catch(() => null);
     if (!response?.ok) { setSaveError(payload?.error || "Нет связи с сервером. Изменения остались в редакторе."); return false; }
+    if (payload?.blocks) setPageBuilder(current => ({...current,blocks: Object.fromEntries(Object.entries(current.blocks).map(([key,items]) => [key,items.map(item => payload.blocks.find((saved: SitePageBlock) => saved.id === item.id) ?? item)])) as PageBuilderState["blocks"]}));
     for (const block of blocks) dirtyBlocks.current.delete(block.id);
     setDirtyCount(dirtyBlocks.current.size);
     if (includeSettings) {
@@ -791,7 +793,7 @@ function ModuleSettings({ block, onSettingChange, contentLibrary }: { block: Sit
   }
 
   const hasTextFields = ["hero", "category-grid", "popular-products", "new-arrivals", "text-image", "product-carousel", "catalog-header", "catalog-empty", "support"].includes(block.type);
-  const hasButtonFields = ["hero", "category-grid", "popular-products", "new-arrivals", "product-carousel"].includes(block.type);
+  const hasButtonFields = ["text-image", "hero", "category-grid", "popular-products", "new-arrivals", "product-carousel"].includes(block.type);
   const hasImageField = ["text-image"].includes(block.type);
   const hasLimitField = ["category-grid", "popular-products", "new-arrivals", "product-carousel", "related-products", "catalog-grid"].includes(block.type);
   const hasFilterField = block.type === "product-carousel";
@@ -807,6 +809,7 @@ function ModuleSettings({ block, onSettingChange, contentLibrary }: { block: Sit
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
+        {block.type === "hero" && <><label className="admin-field"><span>Автоматически менять слайды</span><input type="checkbox" checked={settings.autoplay !== false} onChange={e => onSettingChange("autoplay", e.target.checked)} /></label><Field label="Интервал, секунд"><input type="number" min="3" max="30" value={Number(settings.interval)||6} onChange={e => onSettingChange("interval", Number(e.target.value))} className="admin-input" /></Field><label className="admin-field"><span>Вторая кнопка</span><input type="checkbox" checked={settings.showSecondaryButton !== false} onChange={e => onSettingChange("showSecondaryButton", e.target.checked)} /></label><p className="admin-muted">Слайды и фотографии настраиваются во вкладке «Баннеры и преимущества». Выберите размещение «Главный экран». Пустой текст кнопки скрывает её.</p></>}
         {hasTextFields && (
           <>
             <Field label="Заголовок">
@@ -831,7 +834,7 @@ function ModuleSettings({ block, onSettingChange, contentLibrary }: { block: Sit
 
         {hasImageField && (
           <Field label="Картинка / баннер · рекомендуется 1600×900 px">
-            <input value={getSettingText(settings, "image")} onChange={(event) => onSettingChange("image", event.target.value)} className="admin-input" placeholder="/uploads/banner.png или https://..." />
+            <ImageDropZone value={getSettingText(settings, "image")} onChange={value => onSettingChange("image", value)} label="Изображение блока" recommendedSize="1600×900" />
           </Field>
         )}
 
@@ -870,7 +873,7 @@ function ModuleSettings({ block, onSettingChange, contentLibrary }: { block: Sit
         {hasToneField && (
           <Field label="Стиль блока">
             <select value={getSettingText(settings, "tone") || "blue"} onChange={(event) => onSettingChange("tone", event.target.value)} className="admin-input">
-              <option value="blue">Синий</option>
+              <option value="blue">Тёплый акцент</option>
               <option value="dark">Тёмный</option>
               <option value="light">Светлый</option>
             </select>

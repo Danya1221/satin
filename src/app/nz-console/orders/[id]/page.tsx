@@ -74,7 +74,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
 
             <div className="mt-7 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <InfoCard label="Клиент" value={order.customerName} hint={order.phone} />
-              <InfoCard label="Получение" value={getDeliveryLabel(order.deliveryType)} hint={deliveryValue} />
+              <InfoCard label="Получение" value={order.deliveryCarrier === "cdek" ? "СДЭК" : getDeliveryLabel(order.deliveryType)} hint={deliveryValue} />
               <InfoCard label="Ответственный" value={order.assignedToName || "Не назначен"} />
               <InfoCard
                 label="Сумма"
@@ -135,6 +135,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               address: order.address,
               pickupPoint: order.pickupPoint,
               paymentMethod: order.paymentMethod,
+              deliveryFee: order.deliveryFee, deliveryCarrier: order.deliveryCarrier, deliveryZone: order.deliveryZone,
               status: order.status,
               comment: order.comment,
               managerComment: order.managerComment,

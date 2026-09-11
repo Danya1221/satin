@@ -63,6 +63,7 @@ export default async function EditAdminOrderPage({
               address: order.address,
               pickupPoint: order.pickupPoint,
               paymentMethod: order.paymentMethod,
+              deliveryFee: order.deliveryFee, deliveryCarrier: order.deliveryCarrier, deliveryZone: order.deliveryZone,
               status: order.status,
               comment: order.comment,
               managerComment: order.managerComment,

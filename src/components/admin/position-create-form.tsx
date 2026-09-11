@@ -32,7 +32,7 @@ function normalizeVariantSlug(value: string) {
     .toLowerCase()
     .trim()
     .replace(/[\s_]+/g, "-")
-    .replace(/[^a-z0-9-]+/g, "")
+    .replace(/[^\p{L}\p{N}-]+/gu, "")
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
@@ -86,7 +86,7 @@ export function PositionCreateForm({ products, initialProductSlug, initialCatego
   }, [color, memory, selectedProduct?.name, sim]);
 
   const finalSku = normalizeManualSku(sku);
-  const finalSlug = normalizeVariantSlug(slug);
+  const finalSlug = normalizeVariantSlug(slug || [selectedProduct?.slug, finalSku].filter(Boolean).join("-"));
   const finalTitle = title.trim() || suggestedTitle;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -96,7 +96,7 @@ export function PositionCreateForm({ products, initialProductSlug, initialCatego
 
     try {
       if (!productId || !finalSku || !finalSlug || !finalTitle || !price) {
-        throw new Error("Выберите карточку, SKU, ссылку позиции, название и цену.");
+        throw new Error("Выберите модель, укажите артикул и цену.");
       }
 
       const response = await fetch(`/api/admin/products/${productId}/variants`, {
@@ -147,16 +147,17 @@ export function PositionCreateForm({ products, initialProductSlug, initialCatego
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 pb-28">
+    <form onSubmit={handleSubmit} className="admin-position-form space-y-6 pb-28">
       <section className="rounded-[34px] border border-white/10 bg-white/[0.035] p-6 sm:p-8">
         <SectionTitle
           label="Новая позиция"
-          title="Добавить SKU"
-          text="Позиция — это конкретный товар, который продаётся: память, цвет, SIM, цена, старая цена, остаток и своя библиотека фото. Она привязывается к материнской карточке."
+          title="Добавить конфигурацию"
+          text="Выберите модель, укажите параметры, цену и остаток. Добавьте фотографии выбранного цвета."
         />
 
         <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          <Field label="Материнская карточка">
+          <h3 className="admin-form-section-title">1. Модель и артикул</h3>
+          <Field label="Модель товара">
             <select value={productId} onChange={(event) => setProductId(event.target.value)} className={inputClass}>
               {products.map((product) => (
                 <option key={product.id} value={product.id}>
@@ -199,6 +200,7 @@ export function PositionCreateForm({ products, initialProductSlug, initialCatego
             />
           </Field>
 
+          <h3 className="admin-form-section-title">2. Конфигурация</h3>
           <Field label="Память">
             <input
               value={memory}
@@ -226,7 +228,8 @@ export function PositionCreateForm({ products, initialProductSlug, initialCatego
             />
           </Field>
 
-          <Field label="Цена">
+          <h3 className="admin-form-section-title">3. Цена и наличие</h3>
+          <Field label="Цена, ₽">
             <input
               value={price}
               onChange={(event) => setPrice(onlyDigits(event.target.value))}
@@ -265,7 +268,7 @@ export function PositionCreateForm({ products, initialProductSlug, initialCatego
             </select>
           </Field>
 
-          <div className="md:col-span-2 xl:col-span-3 mt-2 rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4">
+          <details className="md:col-span-2 xl:col-span-3 mt-2 rounded-2xl border border-theme p-4"><summary className="cursor-pointer font-semibold">Поисковое описание — необязательно</summary>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-400">SEO позиции</div>
             <p className="mt-2 text-xs leading-relaxed text-white/45">
               Описание остаётся у карточки товара, а у SKU можно задать SEO-заголовок, SEO-описание и ключи для конкретной комплектации.
@@ -300,10 +303,10 @@ export function PositionCreateForm({ products, initialProductSlug, initialCatego
                 </Field>
               </div>
             </div>
-          </div>
+          </details>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-8"><h3 className="admin-form-section-title">4. Фотографии</h3>
           <ImageLibraryField
             value={images}
             onChange={setImages}
@@ -315,7 +318,7 @@ export function PositionCreateForm({ products, initialProductSlug, initialCatego
         </div>
 
         <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-xs leading-relaxed text-white/45">
-          <span className="text-white/65">Подсказка:</span> SKU и ссылку позиции заполняем вручную. Фото хранятся именно у позиции, а не у материнской карточки.
+          <span className="text-white/65">Подсказка:</span> Укажите свой артикул. Название и ссылка сформируются автоматически, если оставить их пустыми. Фотографии относятся к этой конфигурации.
           {finalSku || finalTitle ? (
             <div className="mt-2 text-white/55">
               Будет создано: <span className="font-semibold text-white">{finalSku || "SKU не заполнен"}</span>{finalSlug ? <span> · /product/{finalSlug}</span> : null}

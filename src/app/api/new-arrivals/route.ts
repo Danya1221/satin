@@ -27,6 +27,6 @@ export async function GET() {
   } catch (error) {
     console.error("New arrivals data loading failed", error);
 
-    return NextResponse.json({ products: [], newArrivals: [], pageBlocks: [] });
+    return NextResponse.json({ error: "Не удалось загрузить новинки. Попробуйте ещё раз." }, {status:503});
   }
 }

@@ -1,110 +1,14 @@
 "use client";
-
-import type { ChangeEvent, FormEvent } from "react";
-import { useRef, useState } from "react";
+import { useRef,useState } from "react";
 import { useRouter } from "next/navigation";
-
-type ImportResult = {
-  ok?: boolean;
-  created?: number;
-  updated?: number;
-  skipped?: number;
-  errors?: string[];
-  error?: string;
-};
-
-export function PositionsImportForm() {
-  const router = useRouter();
-  const fileRef = useRef<HTMLInputElement | null>(null);
-  const [fileName, setFileName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ImportResult | null>(null);
-
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    setFileName(file?.name ?? "");
-    setResult(null);
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const file = fileRef.current?.files?.[0];
-
-    if (!file) {
-      setResult({ error: "Выберите XLSX-файл для импорта." });
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    setLoading(true);
-    setResult(null);
-
-    try {
-      const response = await fetch("/api/admin/positions/import", {
-        method: "POST",
-        body: formData,
-      });
-      const payload = (await response.json()) as ImportResult;
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Не удалось импортировать XLSX.");
-      }
-
-      setResult(payload);
-      router.refresh();
-    } catch (error) {
-      setResult({ error: error instanceof Error ? error.message : "Не удалось импортировать XLSX." });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="rounded-[28px] border border-blue-500/25 bg-blue-500/10 p-6">
-      <div className="text-sm font-medium uppercase tracking-[0.2em] text-blue-400">XLSX</div>
-      <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-[-0.035em] text-white">Импорт позиций</h2>
-          <p className="mt-3 max-w-[980px] text-sm leading-relaxed text-white/55">
-            Excel обновляет SKU-позиции по колонке <span className="font-semibold text-white">sku</span>. Для быстрой загрузки достаточно колонок: <span className="text-white">sku, price, oldPrice, stock</span>. Дополнительно можно передать model/productSlug, name, color, memory, sim, status, seoTitle, seoDescription и seoKeywords.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <label className="cursor-pointer rounded-xl border border-white/10 bg-black/20 px-5 py-3 text-center text-sm font-medium text-white transition-colors hover:border-blue-500/40 hover:bg-blue-500/10">
-            {fileName || "Выбрать XLSX"}
-            <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} className="hidden" />
-          </label>
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? "Импортирую..." : "Импортировать"}
-          </button>
-        </div>
-      </div>
-
-      {result ? (
-        <div className={`mt-5 rounded-2xl border px-4 py-3 text-sm ${result.error ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-green-500/30 bg-green-500/10 text-green-200"}`}>
-          {result.error ? (
-            result.error
-          ) : (
-            <>
-              Готово: обновлено {result.updated ?? 0}, создано {result.created ?? 0}, пропущено {result.skipped ?? 0}.
-              {result.errors?.length ? (
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-red-100/80">
-                  {result.errors.slice(0, 6).map((error) => (
-                    <li key={error}>{error}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </>
-          )}
-        </div>
-      ) : null}
-    </form>
-  );
+type Kind="products"|"variants"|"prices";
+type Result={ok?:boolean;applied?:boolean;digest?:string;created?:number;updated?:number;total?:number;error?:string;errors?:string[];preview?:{row:number;key:string;operation:string;changes:Record<string,unknown>}[]};
+export function PositionsImportForm(){
+ const router=useRouter(),fileRef=useRef<HTMLInputElement>(null);const [kind,setKind]=useState<Kind>("prices"),[result,setResult]=useState<Result|null>(null),[busy,setBusy]=useState(false),[fileName,setFileName]=useState("");
+ async function upload(apply=false){const file=fileRef.current?.files?.[0];if(!file){setResult({error:"Выберите таблицу."});return;}setBusy(true);try{const data=new FormData();data.set("file",file);if(apply){data.set("apply","1");data.set("digest",result?.digest||"");}const r=await fetch(`/api/admin/positions/table?kind=${kind}`,{method:"POST",body:data});const d=await r.json();setResult(d);if(d.applied){router.refresh();window.dispatchEvent(new Event("store-settings-updated"));}}catch{setResult({error:"Нет связи с сервером. Проверьте состояние импорта перед повторной загрузкой."});}finally{setBusy(false);}}
+ return <section className="admin-panel"><div className="admin-panel-heading"><div><h2>Товары и остатки в таблицах</h2><p className="admin-muted">Скачайте шаблон, заполните его и проверьте изменения перед применением.</p></div></div><div className="admin-editor-tabs">{([{key:"prices",title:"Цены и остатки"},{key:"products",title:"Модели товаров"},{key:"variants",title:"Позиции и варианты"}] as const).map(t=><button type="button" key={t.key} disabled={busy} aria-pressed={kind===t.key} onClick={()=>{setKind(t.key);setResult(null);setFileName("");if(fileRef.current)fileRef.current.value="";}}>{t.title}</button>)}</div><div className="admin-search-row"><a className="admin-secondary-button" href={`/api/admin/positions/table?kind=${kind}&template=1`}>Скачать шаблон</a><a className="admin-secondary-button" href={`/api/admin/positions/table?kind=${kind}`}>Выгрузить текущие данные</a></div><p className="admin-muted">В шаблоне есть инструкция и справочники. Пустые ячейки сохраняют текущие значения. Ничего не удаляется. Для снятия старой цены укажите 0.</p><div className="admin-search-row"><input ref={fileRef} type="file" aria-label="Таблица для загрузки" accept=".xlsx,.xls,.csv" disabled={busy} onChange={e=>{setFileName(e.target.files?.[0]?.name||"");setResult(null);}}/><button type="button" disabled={busy||!fileName} className="admin-primary-button" onClick={()=>void upload()}>{busy?"Проверяем…":"Проверить таблицу"}</button></div>
+ {result?.error&&<p role="alert" className="admin-alert admin-alert-error">{result.error}</p>}{result?.errors?.length? <div role="alert" className="admin-alert admin-alert-error"><strong>Исправьте ошибки — данные не изменены.</strong><ul>{result.errors.map((e,i)=><li key={i}>{e}</li>)}</ul></div>:null}
+ {result?.ok&&<div className="admin-alert" role="status">{result.applied?"Готово":"Предпросмотр"}: новых — {result.created}, обновлений — {result.updated}. {result.total!>50?"Показаны первые 50 строк.":""}</div>}
+ {result?.ok&&!result.applied&&<><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Строка</th><th>Артикул / модель</th><th>Действие</th><th>Изменения</th></tr></thead><tbody>{result.preview?.map(row=><tr key={row.row}><td>{row.row}</td><td>{row.key}</td><td>{row.operation==="create"?"Создать":"Обновить"}</td><td>{Object.entries(row.changes).filter(([k])=>!['productId','slug','sku'].includes(k)).map(([k,v])=>`${k}: ${Array.isArray(v)?v.join(', '):v??'—'}`).join(" · ")}</td></tr>)}</tbody></table></div><div className="admin-search-row"><button type="button" disabled={busy} onClick={()=>void upload(true)} className="admin-primary-button">Применить {result.total} строк</button><button type="button" disabled={busy} onClick={()=>setResult(null)} className="admin-secondary-button">Отменить</button></div></>}
+ </section>;
 }

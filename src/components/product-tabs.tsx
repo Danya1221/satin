@@ -24,33 +24,6 @@ type ProductTabsProps = {
   benefits: ProductBenefit[];
 };
 
-const fallbackBenefits: ProductBenefit[] = [
-  {
-    id: "delivery",
-    title: "Бесплатная доставка",
-    description: "В день заказа в пределах МКАД.",
-    icon: "✦",
-    image: "",
-    href: "",
-  },
-  {
-    id: "order",
-    title: "Под заказ",
-    description: "Привозим редкие модели и конфигурации.",
-    icon: "✦",
-    image: "",
-    href: "",
-  },
-  {
-    id: "original",
-    title: "Оригинальные товары",
-    description: "Проверяем устройство перед передачей клиенту.",
-    icon: "✦",
-    image: "",
-    href: "",
-  },
-];
-
 export function ProductTabs({
   productName,
   brand,
@@ -68,7 +41,7 @@ export function ProductTabs({
   >("description");
   const [descriptionOpen, setDescriptionOpen] = useState(false);
 
-  const visibleBenefits = benefits.length > 0 ? benefits : fallbackBenefits;
+  const visibleBenefits = benefits;
   const cleanDescription = description?.trim();
   const cleanShortDescription = shortDescription?.trim();
 
@@ -123,7 +96,7 @@ export function ProductTabs({
               )}
 
               <p className="mt-4">
-                Перед оформлением менеджер подтвердит наличие, комплектацию,
+                После оформления менеджер подтвердит наличие, комплектацию,
                 способ получения и итоговую стоимость заказа.
               </p>
             </div>
@@ -148,7 +121,7 @@ export function ProductTabs({
               Основное
             </h2>
 
-            <div className="mt-6 grid gap-3 md:grid-cols-2">
+            <div className="store-specs mt-6">
               <Characteristic label="Бренд" value={brand} />
               <Characteristic label="Категория" value={category} />
               <Characteristic label="Модель" value={productName} />
@@ -156,7 +129,7 @@ export function ProductTabs({
               <Characteristic label="Цвет" value={color} />
               <Characteristic label="SIM" value={sim} />
               <Characteristic label="SKU" value={sku} />
-              <Characteristic label="Гарантия" value="12 месяцев" />
+
             </div>
           </div>
         )}
@@ -258,8 +231,9 @@ function TabButton({
 }
 
 function Characteristic({ label, value }: { label: string; value: string }) {
+  if (!value || value.includes("Будет выбран")) return null;
   return (
-    <div className="flex items-center justify-between gap-5 rounded-2xl border border-theme bg-blue-soft px-5 py-4">
+    <div className="store-spec-row">
       <span className="text-sm text-muted">{label}</span>
       <span className="text-right text-sm font-bold text-main">{value}</span>
     </div>

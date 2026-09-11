@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 
-export type PageKey = "home" | "catalog" | "new" | "product" | "cart" | "profile" | "faq";
+export type PageKey = "home" | "catalog" | "new" | "product" | "cart" | "profile" | "faq" | "contacts" | "delivery" | "payment" | "returns" | "offer" | "privacy" | "consent" | "cookies";
 
 export type PageBlockType =
   | "hero"
@@ -68,6 +68,7 @@ export type PageBuilderState = {
 };
 
 export const builderPages: BuilderPage[] = [
+  ...([{key:"contacts",title:"Контакты"},{key:"delivery",title:"Доставка"},{key:"payment",title:"Оплата"},{key:"returns",title:"Возврат и гарантия"},{key:"offer",title:"Условия продажи"},{key:"privacy",title:"Конфиденциальность"},{key:"consent",title:"Согласие"},{key:"cookies",title:"Cookie"}] as const).map(page => ({...page,description:"Дополнительные тексты, фотографии и кнопки под основной информацией."})),
   {
     key: "home",
     title: "Главная",
@@ -111,7 +112,7 @@ export const moduleLibrary: ModuleDefinition[] = [
     title: "Главный экран",
     description: "Главный баннер, заголовок и кнопка.",
     pageKeys: ["home"],
-    defaultSettings: { title: "", subtitle: "", buttonText: "", buttonHref: "" },
+    defaultSettings: { title: "", subtitle: "", buttonText: "", buttonHref: "", autoplay: true, interval: 6, showButton: true, showSecondaryButton: true },
   },
   {
     type: "benefits",
@@ -200,7 +201,7 @@ export const moduleLibrary: ModuleDefinition[] = [
     type: "text-image",
     title: "Текст + картинка",
     description: "Apple-style секция с крупным текстом и изображением.",
-    pageKeys: ["home", "catalog", "new", "product"],
+    pageKeys: ["home", "catalog", "new", "product", "cart", "profile", "faq", "contacts", "delivery", "payment", "returns", "offer", "privacy", "consent", "cookies"],
     defaultSettings: {
       title: "Заголовок секции",
       subtitle: "Описание секции можно менять без кода.",
@@ -213,7 +214,7 @@ export const moduleLibrary: ModuleDefinition[] = [
     type: "product-carousel",
     title: "Карусель товаров",
     description: "Гибкая карусель товаров: популярные, новинки или все товары.",
-    pageKeys: ["home", "catalog", "new", "product"],
+    pageKeys: ["home", "catalog", "new", "product", "cart", "profile", "faq", "contacts", "delivery", "payment", "returns", "offer", "privacy", "consent", "cookies"],
     defaultSettings: {
       title: "Товары",
       subtitle: "Подборка из каталога",
@@ -375,6 +376,7 @@ export const defaultPageBlocks: Record<PageKey, Array<Omit<SitePageBlock, "id" |
     makeDefaultBlock("catalog", "catalog-grid", 40),
     makeDefaultBlock("catalog", "catalog-empty", 50),
   ],
+  contacts: [], delivery: [], payment: [], returns: [], offer: [], privacy: [], consent: [], cookies: [],
   new: [
     makeDefaultBlock("new", "new-arrivals", 10),
     makeDefaultBlock("new", "promo-banner", 20),

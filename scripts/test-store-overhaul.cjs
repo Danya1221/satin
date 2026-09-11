@@ -93,3 +93,12 @@ test('A concurrently changed banner rolls back page edits as part of save all', 
   const before=clone(state); const response=await save({blocks:[{...inputBlock(state.blocks.a),settings:{title:'Do not publish'}}],media:{banners:[{id:'hero',title:'stale',updatedAt:'2020-01-01T00:00:00.000Z'}],benefits:[]}});
   assert.equal(response.status,409); assert.deepEqual(state,before);
 });
+
+
+test('Editor response provides timestamps for an immediate second save', async () => {
+ const response = await save({blocks:[{...inputBlock(state.blocks.a),settings:{title:'First'}}]});
+ assert.equal(response.status,200); const body=await response.json();
+ const saved=body.blocks.find(item=>item.id==='a'); assert(saved.updatedAt);
+ const second=await save({blocks:[{...saved,settings:{title:'Second'}}]});
+ assert.equal(second.status,200); assert.equal(state.blocks.a.settings.title,'Second');
+});

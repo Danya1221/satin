@@ -53,6 +53,9 @@ type InitialOrder = {
   address: string;
   pickupPoint: string;
   paymentMethod: string;
+  deliveryFee?: number | null;
+  deliveryCarrier?: string;
+  deliveryZone?: string;
   status: string;
   comment: string;
   managerComment: string;
@@ -101,7 +104,9 @@ export function OrderEditorForm({
   const [deliveryType, setDeliveryType] = useState<"courier" | "pickup">(initialOrder?.deliveryType || "courier");
   const [address, setAddress] = useState(initialOrder?.address || "");
   const [pickupPoint, setPickupPoint] = useState(initialOrder?.pickupPoint || "");
-  const [paymentMethod, setPaymentMethod] = useState(initialOrder?.paymentMethod || "cash");
+  const [deliveryFee, setDeliveryFee] = useState(initialOrder?.deliveryFee == null ? "" : String(initialOrder.deliveryFee));
+  const [deliveryCarrier, setDeliveryCarrier] = useState(initialOrder?.deliveryCarrier || "courier");
+  const [paymentMethod, setPaymentMethod] = useState(initialOrder?.paymentMethod || "manager");
   const [status, setStatus] = useState(
     initialOrder?.status || getDefaultOrderStatus(initialOrder?.deliveryType || "courier", workflow),
   );
@@ -219,6 +224,8 @@ export function OrderEditorForm({
             phone,
             email,
             deliveryType,
+            deliveryFee: deliveryType === "pickup" ? 0 : deliveryFee === "" ? null : Number(deliveryFee),
+            deliveryCarrier: deliveryType === "pickup" ? "pickup" : deliveryCarrier,
             address,
             pickupPoint,
             paymentMethod,
@@ -313,9 +320,10 @@ export function OrderEditorForm({
         ) : (
           <Field label="ПВЗ / точка самовывоза"><input value={pickupPoint} onChange={(e) => setPickupPoint(e.target.value)} className={inputClass} /></Field>
         )}
+        {deliveryType === "courier" && <><Field label="Служба доставки"><select className={inputClass} value={deliveryCarrier} onChange={e=>setDeliveryCarrier(e.target.value)}><option value="courier">Курьер</option><option value="cdek">СДЭК</option></select></Field><Field label="Согласованная доставка, ₽"><input type="number" min={0} max={1000000} step={1} className={inputClass} value={deliveryFee} onChange={e=>setDeliveryFee(e.target.value)} placeholder="Стоимость ещё не согласована"/>{initialOrder?.deliveryZone && <span>Зона: {initialOrder.deliveryZone}</span>}</Field></>}
         <Field label="Оплата">
           <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={inputClass}>
-            <option value="cash">Наличными при получении</option><option value="card_on_delivery">Картой при получении</option>
+            <option value="manager">Согласовать с покупателем</option><option value="cash">Наличными при получении</option><option value="card_on_delivery">Картой при получении</option>
             <option value="bank_transfer">Перевод / счёт</option>
           </select>
         </Field>
@@ -370,7 +378,7 @@ export function OrderEditorForm({
       </div>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-2xl font-bold">Итого: {new Intl.NumberFormat("ru-RU").format(total)} ₽</div>
+        <div className="text-2xl font-bold">Итого: {new Intl.NumberFormat("ru-RU").format(total + (deliveryType === "pickup" ? 0 : Number(deliveryFee || 0)))} ₽</div>
         <button type="button" onClick={() => void submit()} disabled={saving} className="rounded-xl bg-blue-600 px-7 py-4 text-sm font-semibold hover:bg-blue-500 disabled:opacity-50">
           {saving ? "Сохраняю..." : mode === "create" ? "Создать заявку" : "Сохранить изменения"}
         </button>

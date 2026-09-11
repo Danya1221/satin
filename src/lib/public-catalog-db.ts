@@ -1,4 +1,5 @@
 import "server-only";
+import { decodeRouteSegment } from "@/lib/route-paths";
 
 import { prisma } from "@/lib/db";
 import { formatPrice } from "@/lib/product-pricing";
@@ -263,6 +264,14 @@ export async function getPublicCatalogData(): Promise<PublicCatalogData> {
 }
 
 export async function getPublicProductBySlug(slug: string) {
+  slug = decodeRouteSegment(slug);
+  let resolvedSku = "";
+  const direct = await prisma.product.findUnique({where:{slug},select:{id:true}});
+  if(!direct) {
+    const variants = await prisma.productVariant.findMany({where:{slug,status:{in:["active","out_of_stock"]},product:{status:"active"}},include:{product:{select:{slug:true}}},take:2});
+    if(variants.length !== 1) return null;
+    slug = variants[0].product.slug; resolvedSku = variants[0].sku;
+  }
   const product = await prisma.product.findUnique({
     where: { slug },
     include: {
@@ -370,6 +379,7 @@ export async function getPublicProductBySlug(slug: string) {
   }
 
   return {
+    resolvedSku,
     product: toPublicProduct(product),
     positions,
     relatedProducts: relatedIds

@@ -137,6 +137,9 @@ model Customer {
 
 
 model ProductReview {
+  readAt DateTime?
+  answer String @default("")
+  answeredAt DateTime?
   id               String              @id @default(cuid())
   productId        String
   customerId       String
@@ -176,6 +179,7 @@ model ProductReviewVote {
 }
 
 model ProductQuestion {
+  readAt DateTime?
   id          String    @id @default(cuid())
   productId   String
   customerId  String?
@@ -239,6 +243,10 @@ model Address {
 }
 
 model Order {
+  deliveryCarrier String @default("courier")
+  deliveryZone String @default("")
+  deliveryFee Int?
+  checkoutKey String? @unique
   id             String       @id @default(cuid())
   publicId       String       @unique
   customerId     String?

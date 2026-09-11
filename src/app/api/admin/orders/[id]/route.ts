@@ -22,6 +22,8 @@ type UpdateBody = {
   phone?: unknown;
   email?: unknown;
   deliveryType?: unknown;
+  deliveryFee?: unknown;
+  deliveryCarrier?: unknown;
   address?: unknown;
   pickupPoint?: unknown;
   paymentMethod?: unknown;
@@ -200,6 +202,9 @@ export async function PATCH(
       ? preparedItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
       : order.subtotal || order.total;
 
+    const deliveryFee = deliveryType === "pickup" ? 0 : isFullEdit && body.deliveryFee !== undefined ? body.deliveryFee === null || body.deliveryFee === "" ? null : Number(body.deliveryFee) : order.deliveryFee;
+    if(deliveryFee !== null && (!Number.isSafeInteger(deliveryFee) || deliveryFee < 0 || deliveryFee > 1000000)) return NextResponse.json({error:"Проверьте стоимость доставки."},{status:400});
+    const deliveryCarrier = deliveryType === "pickup" ? "pickup" : isFullEdit && body.deliveryCarrier !== undefined ? body.deliveryCarrier === "cdek" ? "cdek" : "courier" : order.deliveryCarrier === "cdek" ? "cdek" : "courier";
     const statusChanged = nextStatus !== order.status;
     const adminName =
       currentAdmin?.name || currentAdmin?.login || session.name || session.login || "Менеджер";
@@ -234,6 +239,9 @@ export async function PATCH(
         email,
         status: nextStatus,
         deliveryType,
+        deliveryFee, deliveryCarrier,
+        deliveryZone: deliveryType === "pickup" || deliveryCarrier !== order.deliveryCarrier ? "" : order.deliveryZone,
+        total: preparedItems ? subtotal + (deliveryFee ?? 0) : order.total - (order.deliveryFee ?? 0) + (deliveryFee ?? 0),
         address: nextAddress,
         pickupPoint: nextPickupPoint,
         paymentMethod:
@@ -252,7 +260,7 @@ export async function PATCH(
               promoDiscount: 0,
               promoCode: "",
               discountTotal: 0,
-              total: subtotal,
+              total: subtotal + (deliveryFee ?? 0),
               items: {
                 deleteMany: {},
                 create: preparedItems,

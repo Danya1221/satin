@@ -46,6 +46,7 @@ type PositionDiscountQuote = {
 };
 
 type ProductReviewItem = {
+ answer?: string;
  id: string;
  rating: number;
  text: string;
@@ -148,7 +149,7 @@ function saveFavoriteSlugs(slugs: string[]) {
 
 function ProductMainImage({ src, alt }: { src: string; alt: string }) {
  return (
- <div className="relative mx-auto flex h-full min-h-[220px] w-full items-center justify-center overflow-hidden rounded-[16px] border border-theme bg-slate-50 text-muted-soft sm:h-auto sm:min-h-0 sm:aspect-[3/4] sm:max-w-[560px] sm:rounded-[30px] sm:border-0 sm:bg-white">
+ <div className="relative mx-auto flex h-full min-h-[220px] w-full items-center justify-center overflow-hidden rounded-[16px] border border-theme bg-slate-50 text-muted-soft sm:h-auto sm:min-h-0 sm:aspect-square sm:max-w-[560px] sm:rounded-[30px] sm:border-0 sm:bg-white">
  {/* eslint-disable-next-line @next/next/no-img-element */}
  <Image quality={75} src={src}
  alt={alt}
@@ -161,7 +162,7 @@ function ProductMainImage({ src, alt }: { src: string; alt: string }) {
 
 function ProductImagePlaceholder() {
  return (
- <div className="mx-auto flex h-full min-h-[220px] w-full items-center justify-center overflow-hidden rounded-[16px] border border-theme bg-blue-soft text-muted-soft sm:h-auto sm:min-h-0 sm:aspect-[3/4] sm:max-w-[520px] sm:rounded-[30px]">
+ <div className="mx-auto flex h-full min-h-[220px] w-full items-center justify-center overflow-hidden rounded-[16px] border border-theme bg-blue-soft text-muted-soft sm:h-auto sm:min-h-0 sm:aspect-square sm:max-w-[520px] sm:rounded-[30px]">
  Фото товара
  </div>
  );
@@ -178,17 +179,16 @@ export function ProductDetailView({
  const content = usePageContent("product");
  const site = useStoreSettings();
  const [selectedColor, setSelectedColor] = useState(
- selectedPosition?.color ?? "",
+ selectedPosition?.color ?? (new Set(positions.map(p => p.color)).size === 1 ? positions[0]?.color ?? "" : ""),
  );
  const [selectedMemory, setSelectedMemory] = useState(
- selectedPosition?.memory ?? "",
+ selectedPosition?.memory ?? (new Set(positions.map(p => p.memory)).size === 1 ? positions[0]?.memory ?? "" : ""),
  );
- const [selectedSim, setSelectedSim] = useState(selectedPosition?.sim ?? "");
+ const [selectedSim, setSelectedSim] = useState(selectedPosition?.sim ?? (new Set(positions.map(p => p.sim)).size === 1 ? positions[0]?.sim ?? "" : ""));
 
  const [quantity, setQuantity] = useState(1);
  const [addedToCart, setAddedToCart] = useState(false);
  const [isFavorite, setIsFavorite] = useState(false);
- const [showConfigEditor, setShowConfigEditor] = useState(false);
  const [activeImageIndex, setActiveImageIndex] = useState(0);
  const [positionDiscountQuote, setPositionDiscountQuote] = useState<PositionDiscountQuote | null>(null);
  const [community, setCommunity] = useState<ProductCommunity | null>(null);
@@ -218,12 +218,12 @@ export function ProductDetailView({
 
  const categoryName = product.categoryName || product.category;
 
- const memoryOptions = uniqueBy(positions, (position) => position.memory);
- const colorOptions = uniqueBy(positions, (position) => position.color);
- const simOptions = uniqueBy(positions, (position) => position.sim);
+ const memoryOptions = uniqueBy(positions, (position) => position.memory).filter(p => p.memory);
+ const colorOptions = uniqueBy(positions, (position) => position.color).filter(p => p.color);
+ const simOptions = uniqueBy(positions, (position) => position.sim).filter(p => p.sim);
 
  const isConfigurationComplete =
- Boolean(selectedColor) && Boolean(selectedMemory) && Boolean(selectedSim);
+ (!colorOptions.length || Boolean(selectedColor)) && (!memoryOptions.length || Boolean(selectedMemory)) && (!simOptions.length || Boolean(selectedSim));
 
  const activePosition = useMemo(() => {
  if (!isConfigurationComplete) {
@@ -244,9 +244,6 @@ export function ProductDetailView({
  selectedSim,
  ]);
 
- useEffect(() => {
- if (activePosition) setShowConfigEditor(false);
- }, [activePosition]);
 
  useEffect(() => {
  const params = new URLSearchParams(window.location.search);
@@ -697,17 +694,7 @@ export function ProductDetailView({
  memory?: string;
  sim?: string;
  }) {
- return positions.some((position) => {
- const color = nextSelection.color ?? selectedColor;
- const memory = nextSelection.memory ?? selectedMemory;
- const sim = nextSelection.sim ?? selectedSim;
-
- return (
- (!color || position.color === color) &&
- (!memory || position.memory === memory) &&
- (!sim || position.sim === sim)
- );
- });
+ return positions.some(position => Object.entries(nextSelection).every(([key, value]) => position[key as "color" | "memory" | "sim"] === value));
  }
 
  function saveSelectedPositionToCart() {
@@ -795,20 +782,20 @@ export function ProductDetailView({
  }, 1800);
  }
 
- function selectColor(value: string) {
- setSelectedColor((current) => (current === value ? "" : value));
- setQuantity(1);
+ function selectConfiguration(key: "color" | "memory" | "sim", value: string) {
+ const selection = { color: selectedColor, memory: selectedMemory, sim: selectedSim, [key]: value };
+ const candidates = positions.filter(position => position[key] === value);
+ const match = candidates.find(position => Object.entries(selection).every(([field, chosen]) => !chosen || position[field as "color" | "memory" | "sim"] === chosen));
+ if (!match) {
+   for (const field of ["color", "memory", "sim"] as const) {
+     if (field !== key) selection[field] = "";
+   }
  }
-
- function selectMemory(value: string) {
- setSelectedMemory((current) => (current === value ? "" : value));
- setQuantity(1);
+ setSelectedColor(selection.color); setSelectedMemory(selection.memory); setSelectedSim(selection.sim); setQuantity(1);
  }
-
- function selectSim(value: string) {
- setSelectedSim((current) => (current === value ? "" : value));
- setQuantity(1);
- }
+ function selectColor(value: string) { selectConfiguration("color", value); }
+ function selectMemory(value: string) { selectConfiguration("memory", value); }
+ function selectSim(value: string) { selectConfiguration("sim", value); }
 
  async function copyConfigurationLink() {
  try {
@@ -940,8 +927,8 @@ export function ProductDetailView({
  </div>
  </div>
 
- <div hidden={!content.visible("product-info")} className="lg:sticky lg:top-6">
- <div className="card rounded-[22px] p-3 sm:rounded-[36px] sm:p-8">
+ <div hidden={!content.visible("product-info")} id="product-purchase">
+ <div className="store-detail-info card rounded-[22px] p-3 sm:rounded-[36px] sm:p-8">
  <div hidden={content.settings("product-info").showBrand === false} className="text-[11px] sm:text-sm text-muted">{product.brand}</div>
 
  <h1 className="store-transaction-heading mt-1 text-[15px] font-bold leading-tight tracking-[-0.03em] sm:mt-2 sm:text-5xl">
@@ -1067,128 +1054,9 @@ export function ProductDetailView({
  <div className="mt-3 text-sm text-blue-500">{communityMessage}</div>
  ) : null}
 
- {!activePosition && (
- <div className="mt-3 hidden rounded-[18px] border border-blue-500/30 bg-blue-soft p-3 sm:mt-7 sm:block sm:rounded-3xl sm:p-5">
- <div className="text-sm text-blue-500">
- Соберите конфигурацию
- </div>
-
- <h2 className="mt-1.5 text-[14px] font-bold sm:text-xl sm:mt-2">
- Выберите цвет, память и SIM
- </h2>
-
- <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted sm:gap-3 sm:text-sm">
- <div>
- <div className="text-muted-soft">Цвет</div>
- <div className="mt-1 font-semibold text-main">
- {selectedColor || "Не выбран"}
- </div>
- </div>
-
- <div>
- <div className="text-muted-soft">Память</div>
- <div className="mt-1 font-semibold text-main">
- {selectedMemory || "Не выбрана"}
- </div>
- </div>
-
- <div>
- <div className="text-muted-soft">SIM</div>
- <div className="mt-1 font-semibold text-main">
- {selectedSim || "Не выбрана"}
- </div>
- </div>
- </div>
-
- <p className="mt-3 text-sm leading-relaxed text-muted sm:mt-4">
- После выбора всех параметров появится конкретная позиция,
- SKU, наличие и итоговая цена.
- </p>
- </div>
- )}
-
- {activePosition && (
- <div className="mt-5 hidden rounded-[22px] border border-blue-500/30 bg-blue-soft p-4 sm:mt-7 sm:block sm:rounded-3xl sm:p-5">
- <div className="text-sm text-blue-500">
- Выбранная конфигурация
- </div>
-
- <h2 className="mt-2 text-lg font-bold sm:text-xl">
- {activePosition.title}
- </h2>
-
- <div className="mt-4 grid gap-3 text-sm text-muted sm:grid-cols-4">
- <div>
- <div className="text-muted-soft">Память</div>
- <div className="mt-1 font-semibold text-main">
- {activePosition.memory}
- </div>
- </div>
-
- <div>
- <div className="text-muted-soft">Цвет</div>
- <div className="mt-1 font-semibold text-main">
- {activePosition.color}
- </div>
- </div>
-
- <div>
- <div className="text-muted-soft">SIM</div>
- <div className="mt-1 font-semibold text-main">
- {activePosition.sim}
- </div>
- </div>
-
- <div>
- <div className="text-muted-soft">SKU</div>
- <div className="mt-1 break-all font-semibold text-main">
- {activePosition.sku}
- </div>
- </div>
- </div>
- </div>
- )}
-
- {/* Mobile: compact horizontal chips when config complete */}
- {activePosition && !showConfigEditor && (
- <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:hidden">
- <button
- type="button"
- onClick={() => setShowConfigEditor(true)}
- className="flex items-center gap-1 rounded-lg border border-blue-500 bg-blue-500/10 px-2 py-1 text-[11px] text-blue-500"
- >
- <span
- className="h-3 w-3 rounded-full border border-blue-500/20"
- style={{ backgroundColor: colorOptions.find((c) => c.color === selectedColor)?.colorHex }}
- />
- {selectedColor}
- </button>
- <button
- type="button"
- onClick={() => setShowConfigEditor(true)}
- className="rounded-lg border border-blue-500 bg-blue-500/10 px-2 py-1 text-[11px] text-blue-500"
- >
- {selectedMemory}
- </button>
- <button
- type="button"
- onClick={() => setShowConfigEditor(true)}
- className="rounded-lg border border-blue-500 bg-blue-500/10 px-2 py-1 text-[11px] text-blue-500"
- >
- {selectedSim}
- </button>
- <button
- type="button"
- onClick={() => setShowConfigEditor(true)}
- className="rounded-lg border border-blue-500/30 bg-transparent px-2 py-1 text-[11px] text-muted"
- >
- Изменить
- </button>
- </div>
- )}
-
+ {!activePosition && <p className="store-config-hint">Выберите доступные параметры — покажем цену и наличие.</p>}
  {/* Full vertical selectors — always desktop, mobile only when not complete or editing */}
- <div className={activePosition && !showConfigEditor ? "hidden sm:block" : ""}>
+ <div className="store-config-options">
 
  <div className="mt-2 sm:mt-8">
  <div className="text-[11px] font-semibold text-muted sm:text-sm sm:text-main">Цвет</div>
@@ -1204,6 +1072,7 @@ export function ProductDetailView({
  <button
  key={position.color}
  type="button"
+ aria-pressed={isActive}
  disabled={isDisabled}
  onClick={() => selectColor(position.color)}
  className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] transition-all duration-300 sm:gap-3 sm:px-4 sm:py-3 sm:text-sm ${
@@ -1240,6 +1109,7 @@ export function ProductDetailView({
  <button
  key={position.memory}
  type="button"
+ aria-pressed={isActive}
  disabled={isDisabled}
  onClick={() => selectMemory(position.memory)}
  className={`rounded-lg border px-2 py-1 text-[11px] transition-all duration-300 sm:px-5 sm:py-3 sm:text-sm ${
@@ -1271,6 +1141,7 @@ export function ProductDetailView({
  <button
  key={position.sim}
  type="button"
+ aria-pressed={isActive}
  disabled={isDisabled}
  onClick={() => selectSim(position.sim)}
  className={`rounded-lg border px-2 py-1 text-[11px] transition-all duration-300 sm:px-5 sm:py-3 sm:text-sm ${
@@ -1793,6 +1664,7 @@ export function ProductDetailView({
  {review.text}
  </p>
 
+ {review.answer && <div className="store-info-card mt-4"><strong>Ответ магазина</strong><p className="mt-2 whitespace-pre-line text-muted">{review.answer}</p></div>}
  {review.images.length > 0 ? (
  <div className="mt-4 flex flex-wrap gap-2">
  {review.images.map((image, index) => (
@@ -1901,6 +1773,7 @@ export function ProductDetailView({
  ) : null}
  <PageExtras content={content} />
  <SiteFooter />
+ <div className="store-mobile-purchase"><div><small>{activePosition ? "Выбранный вариант" : "Выберите параметры"}</small><strong>{activePosition ? (finalTotalPrice > 0 ? formatPrice(finalTotalPrice) : activePosition.price) : priceRange}</strong></div><button type="button" className="store-button" onClick={() => { if (activePosition && activePosition.stock > 0) { handleAddToCart(); } else { document.getElementById("product-purchase")?.scrollIntoView({behavior:"smooth",block:"start"}); } }}>{addedToCart ? "Добавлено ✓" : activePosition ? activePosition.stock > 0 ? "В корзину" : "Нет в наличии" : "Выбрать"}</button></div>
  </div>
  </main>
  );

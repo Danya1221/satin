@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getSiteEditorSettings } from "@/lib/site-settings-db";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
+import "./polish.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getSiteEditorSettings().catch(() => null);

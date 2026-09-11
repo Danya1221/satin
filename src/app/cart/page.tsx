@@ -1,10 +1,11 @@
 "use client";
+import { deliveryQuote, type DeliverySettings } from "@/lib/delivery-settings";
 import { ConsentFields, emptyConsent } from "@/components/consent-fields";
 
 import { BackLink } from "@/components/back-link";
 import Link from "next/link";
 import { usePageContent, PageExtras } from "@/components/page-content";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { products } from "@/data/products";
 import { productPositions } from "@/data/product-positions";
@@ -57,6 +58,7 @@ type CustomerData = {
 };
 
 type DeliveryData = {
+ zoneId?: string;
  method: DeliveryMethod;
  city: string;
  address: string;
@@ -159,6 +161,7 @@ function getDeliveryValidationError(delivery: DeliveryData) {
 
  if (delivery.method === "courier") {
  const address = delivery.savedAddress.trim() || delivery.address.trim();
+ if(delivery.deliveryKey === "cdek") return delivery.city.trim() || address ? "" : "Укажите город для доставки СДЭК.";
  const validation = validateCourierAddress(delivery.city, address);
 
  return validation.ok ? "" : validation.message;
@@ -318,6 +321,7 @@ function getStoredDelivery(): DeliveryData {
  address: savedDelivery?.address ?? "",
  savedAddress: savedDelivery?.savedAddress ?? "",
  deliveryKey: savedDelivery?.deliveryKey ?? "",
+ zoneId: savedDelivery?.zoneId ?? "",
  deliveryTitle: savedDelivery?.deliveryTitle ?? "",
  pickupPointId: savedDelivery?.pickupPointId ?? "",
  };
@@ -345,6 +349,8 @@ export default function CartPage() {
  deliveryTitle: "",
  pickupPointId: "",
  });
+ const [deliverySettings, setDeliverySettings] = useState<DeliverySettings>({mapImage:"",zones:[]});
+ const [checkoutKey] = useState(() => typeof crypto !== "undefined" ? crypto.randomUUID() : "");
  const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>(fallbackDeliveryOptions);
  const [savedAddresses, setSavedAddresses] = useState<string[]>([]);
  const [isAddingAddress, setIsAddingAddress] = useState(false);
@@ -455,12 +461,13 @@ export default function CartPage() {
  async function loadDeliveryOptions() {
  const response = await fetch("/api/delivery-options").catch(() => null);
  const payload = (await response?.json().catch(() => null)) as
- | { deliveries?: DeliveryOption[] }
+ | { deliveries?: DeliveryOption[]; deliverySettings?: DeliverySettings }
  | null;
  const nextOptions = payload?.deliveries?.length ? payload.deliveries : fallbackDeliveryOptions;
 
  if (isMounted) {
  setDeliveryOptions(nextOptions);
+ if(payload?.deliverySettings) setDeliverySettings(payload.deliverySettings);
  }
  }
 
@@ -610,7 +617,8 @@ export default function CartPage() {
  (isRegistered || hasGuestContacts) &&
  !quoteLoading &&
  !promoHasError;
- const payableTotal = quote?.total ?? subtotal;
+ const deliveryCost = deliveryQuote(deliverySettings, delivery.method === "pickup" ? "pickup" : delivery.deliveryKey === "cdek" ? "cdek" : "courier", delivery.zoneId);
+ const payableTotal = (quote?.total ?? subtotal) + (deliveryCost.fee ?? 0);
  const calculatedSubtotal = quote?.subtotal ?? subtotal;
 
  const deliverySummary = getDeliverySummary(delivery, isRegistered);
@@ -800,6 +808,7 @@ export default function CartPage() {
  "Content-Type": "application/json",
  },
  body: JSON.stringify({
+ checkoutKey,
  consent,
  customer: isRegistered
  ? {
@@ -827,7 +836,7 @@ export default function CartPage() {
  const result = (await response.json()) as {
  ok?: boolean;
  error?: string;
- order?: { publicId?: string };
+ order?: { publicId?: string; total?: number };
  };
 
  if (!response.ok || !result.ok || !result.order?.publicId) {
@@ -845,8 +854,8 @@ export default function CartPage() {
  title: delivery.deliveryTitle || (delivery.method === "pickup" ? "ПВЗ / самовывоз" : "Курьерская доставка"),
  },
  payment: {
- type: "cash",
- label: "Наличными при получении",
+ type: "manager",
+ label: "По согласованию с менеджером",
  },
  comment,
  items,
@@ -855,7 +864,7 @@ export default function CartPage() {
  statusDiscount: quote?.statusDiscount ?? 0,
  promoDiscount: quote?.promoDiscount ?? 0,
  promoCode: quote?.promoCode ?? "",
- total: payableTotal,
+ total: result.order.total ?? payableTotal,
  };
 
  localStorage.setItem("netizen-last-order", JSON.stringify(order));
@@ -1195,7 +1204,7 @@ export default function CartPage() {
 
  <div className="flex justify-between gap-4">
  <span>Оплата</span>
- <span className="text-main">наличными</span>
+ <span className="text-main">Согласуем с менеджером</span>
  </div>
  </div>
 
@@ -1239,8 +1248,9 @@ export default function CartPage() {
  </div>
 
  <div className="mt-4 border-t border-theme pt-4 sm:mt-6 sm:pt-6">
+ <div className="flex justify-between gap-4 mb-3 text-sm"><span>Доставка</span><span>{deliveryCost.fee === null ? "Согласует менеджер" : deliveryCost.fee === 0 ? "Бесплатно" : formatPrice(deliveryCost.fee)}</span></div>
  <div className="flex justify-between gap-4 text-base font-bold sm:text-xl">
- <span>К оплате</span>
+ <span>Итого</span>
  <span>{formatPrice(payableTotal)}</span>
  </div>
  </div>
@@ -1272,7 +1282,7 @@ export default function CartPage() {
  </button>
 
  <p className="mt-3 text-[11px] leading-relaxed text-muted-soft sm:mt-4 sm:text-xs">
- Оплата только наличными при получении. Менеджер подтвердит наличие,
+ Менеджер свяжется с вами и подтвердит заказ, способ оплаты,
  доставку и итоговую стоимость заказа.
  </p>
  </aside>
@@ -1316,6 +1326,11 @@ export default function CartPage() {
  ))}
  </div>
 
+ {delivery.method === "courier" && delivery.deliveryKey !== "cdek" && <div className="my-5 grid gap-3">
+ {deliverySettings.mapImage && <a href={deliverySettings.mapImage} target="_blank" rel="noreferrer"><img src={deliverySettings.mapImage} alt="Карта зон доставки" style={{maxHeight:320,width:"100%",objectFit:"contain",borderRadius:16}}/></a>}
+ {deliverySettings.zones.length > 0 && <label>Зона доставки<select className="store-input w-full mt-2" value={delivery.zoneId || ""} onChange={e=>setDelivery(v=>({...v,zoneId:e.target.value}))}><option value="">Уточнить с менеджером</option>{deliverySettings.zones.map(z=><option key={z.id} value={z.id}>{z.name} — {formatPrice(z.price)}{z.description ? ` · ${z.description}` : ""}</option>)}</select></label>}
+ <p className="text-sm text-muted">Если адрес за пределами выбранной зоны, менеджер согласует стоимость до подтверждения заказа.</p></div>}
+ {delivery.deliveryKey === "cdek" && <p className="my-4 text-muted">Укажите город. Пункт выдачи, срок и стоимость СДЭК согласует оператор.</p>}
  {delivery.method === "pickup" && (
  <div className="mt-5 rounded-2xl border border-blue-500/30 bg-blue-500/10 p-5">
  <div className="text-sm uppercase tracking-[0.18em] text-blue-500">
@@ -1621,6 +1636,7 @@ function AddressSuggestionInput({
  onChange: (value: string) => void;
  onSelect: (suggestion: AddressSuggestion) => void;
 }) {
+ const listId = useId();
  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
  const [loading, setLoading] = useState(false);
  const [open, setOpen] = useState(false);
@@ -1723,6 +1739,7 @@ function AddressSuggestionInput({
  <div className="relative">
  <input
  role="combobox"
+ aria-controls={open ? listId : undefined}
  value={value}
  onChange={(event) => {
  setCommittedValue("");
@@ -1782,7 +1799,7 @@ function AddressSuggestionInput({
  <span className="text-muted-soft">
  {mode === "city"
  ? configured === false
- ? "Базовый поиск по России. Для полного справочника подключите ключ подсказок."
+ ? "Если нужного города нет в подсказках, введите его вручную."
  : "Города, посёлки и другие населённые пункты по всей России."
  : city
  ? `Улицы и дома в городе: ${city}.`
@@ -1800,6 +1817,7 @@ function AddressSuggestionInput({
  {open && suggestions.length > 0 ? (
  <div
  role="listbox"
+ id={listId}
  className={`absolute left-0 top-[54px] z-[500] max-h-72 overflow-y-auto rounded-2xl border border-black/10 bg-white p-1.5 text-[#07111f] dark:border-white/15 dark:bg-[#081526] dark:text-white ${
  mode === "city"
  ? "w-[360px] max-w-[calc(100vw-48px)]"

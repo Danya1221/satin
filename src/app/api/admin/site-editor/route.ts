@@ -16,6 +16,7 @@ export async function PATCH(request: NextRequest) {
   const banners: SiteBanner[] = body.media?.banners ?? [];
   const benefits: SiteBenefit[] = body.media?.benefits ?? [];
   if (!Array.isArray(banners) || !Array.isArray(benefits) || banners.length + benefits.length > 150 || [...banners, ...benefits].some(item => !item || typeof item.id !== "string" || typeof item.updatedAt !== "string")) return NextResponse.json({ error: "Некорректные данные баннеров." }, { status: 400 });
+  const savedBlocks: SitePageBlock[] = [];
   const libraryPatch: { banners: SiteBanner[]; benefits: SiteBenefit[] } = { banners: [], benefits: [] };
   try {
     await prisma.$transaction(async tx => {
@@ -23,7 +24,8 @@ export async function PATCH(request: NextRequest) {
         const current = await tx.pageBlock.findUnique({ where: { id: block.id } });
         if (!current || !getModuleDefinition(block.type)?.pageKeys.includes(current.pageKey as SitePageBlock["pageKey"])) throw new Error("CONFLICT");
         if (block.updatedAt !== current.updatedAt.toISOString()) throw new Error("CONFLICT");
-        await tx.pageBlock.update({ where: { id: block.id }, data: { title: block.title, description: block.description, enabled: block.enabled, sortOrder: block.sortOrder, type: block.type, settings: block.settings as Prisma.InputJsonValue } });
+        const savedBlock = await tx.pageBlock.update({ where: { id: block.id }, data: { title: block.title, description: block.description, enabled: block.enabled, sortOrder: block.sortOrder, type: block.type, settings: block.settings as Prisma.InputJsonValue } });
+        savedBlocks.push({...block, updatedAt: savedBlock.updatedAt.toISOString()});
       }
       for (const banner of banners) {
         const current = await tx.siteBanner.findUnique({ where: { id: banner.id } });
@@ -41,7 +43,7 @@ export async function PATCH(request: NextRequest) {
         await tx.siteSetting.upsert({ where: { key: "site" }, create: { key: "site", value }, update: { value } });
       }
     }, { timeout: 20000 });
-    return NextResponse.json({ ok: true, libraryPatch });
+    return NextResponse.json({ ok: true, libraryPatch, blocks: savedBlocks });
   } catch (error) {
     const conflict = error instanceof Error && error.message === "CONFLICT";
     return NextResponse.json({ error: conflict ? "Блок или изображение изменены в другой вкладке. Скопируйте свой текст и обновите страницу перед сохранением." : "Изменения не сохранены. Попробуйте ещё раз." }, { status: conflict ? 409 : 503 });

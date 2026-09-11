@@ -137,6 +137,7 @@ export async function GET(
       id: review.id,
       rating: review.rating,
       text: review.text,
+      answer: review.answer,
       verifiedPurchase: review.verifiedPurchase,
       images: review.images,
       helpfulCount: review.helpfulCount,

@@ -1,138 +1,43 @@
 import { NextResponse } from "next/server";
-
 import { getAuthSession } from "@/lib/auth";
+import { canAccessAdminSection } from "@/lib/admin-access";
 import { prisma } from "@/lib/db";
-
 export const dynamic = "force-dynamic";
-
-type Body = {
-  entity?: "review" | "question";
-  id?: string;
-  answer?: string;
-  isVisible?: boolean;
-};
-
-async function requireAdmin() {
-  const session = await getAuthSession();
-  return session?.role === "admin";
-}
-
-function clean(value: unknown, max = 5000) {
-  return typeof value === "string" ? value.trim().slice(0, max) : "";
-}
-
+const allowed = async () => canAccessAdminSection(await getAuthSession(), "community");
 export async function GET(request: Request) {
-  if (!(await requireAdmin())) {
-    return NextResponse.json({ error: "Нет доступа." }, { status: 401 });
-  }
-
-  const url = new URL(request.url);
-  const rawEntity = url.searchParams.get("entity") || "all";
-  const entity =
-    rawEntity === "question" || rawEntity === "questions"
-      ? "question"
-      : rawEntity === "review" || rawEntity === "reviews"
-        ? "review"
-        : "all";
-  const search = clean(url.searchParams.get("search"), 200);
-  const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 100, 1), 300);
-
-  const productWhere = search
-    ? {
-        OR: [
-          { name: { contains: search, mode: "insensitive" as const } },
-          { brand: { contains: search, mode: "insensitive" as const } },
-          { slug: { contains: search, mode: "insensitive" as const } },
-        ],
-      }
-    : undefined;
-
-  const [reviews, questions] = await Promise.all([
-    entity === "question"
-      ? Promise.resolve([])
-      : prisma.productReview.findMany({
-          where: productWhere ? { product: productWhere } : undefined,
-          include: {
-            product: { select: { id: true, name: true, brand: true, slug: true } },
-            customer: { select: { id: true, name: true, lastName: true, email: true, phone: true } },
-          },
-          orderBy: { createdAt: "desc" },
-          take: limit,
-        }),
-    entity === "review"
-      ? Promise.resolve([])
-      : prisma.productQuestion.findMany({
-          where: productWhere ? { product: productWhere } : undefined,
-          include: {
-            product: { select: { id: true, name: true, brand: true, slug: true } },
-            customer: { select: { id: true, name: true, lastName: true, email: true, phone: true } },
-          },
-          orderBy: { createdAt: "desc" },
-          take: limit,
-        }),
-  ]);
-
-  return NextResponse.json({ reviews, questions });
+  if (!await allowed()) return NextResponse.json({error:"Нет доступа."},{status:403});
+  const url=new URL(request.url), entity=url.searchParams.get("entity") || "questions";
+  const search=(url.searchParams.get("search")||"").trim().slice(0,200);
+  const state=url.searchParams.get("state") || "all";
+  const page=Math.max(1,Math.min(10000,Math.floor(Number(url.searchParams.get("page"))||1)));
+  const product=search?{OR:[{name:{contains:search,mode:"insensitive" as const}},{brand:{contains:search,mode:"insensitive" as const}}]}:undefined;
+  const statusWhere=state==="new"?{readAt:null,answer:""}:state==="read"?{readAt:{not:null},answer:""}:state==="answered"?{answer:{not:""}}:{};
+  const where={...(product?{product}:{}),...statusWhere};
+  const base=product?{product}:{};
+  const include={product:{select:{id:true,name:true,brand:true,slug:true}},customer:{select:{id:true,name:true,lastName:true,email:true,phone:true}}};
+  try {
+    if(entity==="reviews"||entity==="review"){
+      const [reviews,total,all,fresh,read,answered]=await Promise.all([prisma.productReview.findMany({where,include,orderBy:{createdAt:"desc"},take:30,skip:(page-1)*30}),prisma.productReview.count({where}),prisma.productReview.count({where:base}),prisma.productReview.count({where:{...base,readAt:null,answer:""}}),prisma.productReview.count({where:{...base,readAt:{not:null},answer:""}}),prisma.productReview.count({where:{...base,answer:{not:""}}})]);
+      return NextResponse.json({reviews,questions:[],total,page,counts:{all,new:fresh,read,answered}});
+    }
+    const [questions,total,all,fresh,read,answered]=await Promise.all([prisma.productQuestion.findMany({where,include,orderBy:{createdAt:"desc"},take:30,skip:(page-1)*30}),prisma.productQuestion.count({where}),prisma.productQuestion.count({where:base}),prisma.productQuestion.count({where:{...base,readAt:null,answer:""}}),prisma.productQuestion.count({where:{...base,readAt:{not:null},answer:""}}),prisma.productQuestion.count({where:{...base,answer:{not:""}}})]);
+    return NextResponse.json({reviews:[],questions,total,page,counts:{all,new:fresh,read,answered}});
+  }catch{return NextResponse.json({error:"Не удалось загрузить сообщения. Повторите попытку."},{status:503});}
 }
-
 export async function PATCH(request: Request) {
-  if (!(await requireAdmin())) {
-    return NextResponse.json({ error: "Нет доступа." }, { status: 401 });
-  }
-
-  const body = (await request.json()) as Body;
-  const id = clean(body.id, 100);
-
-  if (!id || !body.entity) {
-    return NextResponse.json({ error: "Не указан элемент." }, { status: 400 });
-  }
-
-  if (body.entity === "question") {
-    const answer = clean(body.answer);
-    const item = await prisma.productQuestion.update({
-      where: { id },
-      data: {
-        ...(typeof body.isVisible === "boolean" ? { isVisible: body.isVisible } : {}),
-        ...(body.answer !== undefined
-          ? {
-              answer,
-              answeredAt: answer ? new Date() : null,
-            }
-          : {}),
-      },
-    });
-
-    return NextResponse.json({ item });
-  }
-
-  const item = await prisma.productReview.update({
-    where: { id },
-    data: {
-      ...(typeof body.isVisible === "boolean" ? { isVisible: body.isVisible } : {}),
-    },
-  });
-
-  return NextResponse.json({ item });
+  if(!await allowed())return NextResponse.json({error:"Нет доступа."},{status:403});
+  const body=await request.json().catch(()=>null);
+  if(!body||!["review","question"].includes(body.entity)||typeof body.id!=="string")return NextResponse.json({error:"Не указан элемент."},{status:400});
+  if(body.answer!==undefined&&(typeof body.answer!=="string"||body.answer.length>5000))return NextResponse.json({error:"Ответ: не более 5000 символов."},{status:400});
+  const answer=typeof body.answer==="string"?body.answer.trim():undefined;
+  const data={...(typeof body.isVisible==="boolean"?{isVisible:body.isVisible}:{}),...(typeof body.read==="boolean"?{readAt:body.read?new Date():null}:{}),...(answer!==undefined?{answer,answeredAt:answer?new Date():null,...(answer?{readAt:new Date()}: {})}:{})};
+  try{const item=body.entity==="review"?await prisma.productReview.update({where:{id:body.id},data}):await prisma.productQuestion.update({where:{id:body.id},data});return NextResponse.json({item});}
+  catch{return NextResponse.json({error:"Сообщение не сохранено. Обновите список и повторите."},{status:409});}
 }
-
 export async function DELETE(request: Request) {
-  if (!(await requireAdmin())) {
-    return NextResponse.json({ error: "Нет доступа." }, { status: 401 });
-  }
-
-  const url = new URL(request.url);
-  const entity = url.searchParams.get("entity");
-  const id = clean(url.searchParams.get("id"), 100);
-
-  if (!id || (entity !== "review" && entity !== "question")) {
-    return NextResponse.json({ error: "Не указан элемент." }, { status: 400 });
-  }
-
-  if (entity === "question") {
-    await prisma.productQuestion.delete({ where: { id } });
-  } else {
-    await prisma.productReview.delete({ where: { id } });
-  }
-
-  return NextResponse.json({ ok: true });
+  if(!await allowed())return NextResponse.json({error:"Нет доступа."},{status:403});
+  const q=new URL(request.url).searchParams,id=q.get("id"),entity=q.get("entity");
+  if(!id||!["review","question"].includes(entity||""))return NextResponse.json({error:"Не указан элемент."},{status:400});
+  try{if(entity==="review")await prisma.productReview.delete({where:{id}});else await prisma.productQuestion.delete({where:{id}});return NextResponse.json({ok:true});}
+  catch{return NextResponse.json({error:"Запись не найдена или уже удалена."},{status:404});}
 }

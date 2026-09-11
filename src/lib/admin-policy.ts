@@ -43,7 +43,7 @@ export function getAdminSection(pathname: string): AdminSection {
   const path = pathname.replace(/^\/(nz-console|api\/admin)\/?/, "");
   if (path.startsWith("orders/settings")) return "order-settings";
   if (path.includes("/variants") || /^(positions|color-presets)/.test(path)) return "positions";
-  if (/^(settings|staff|customer-status-settings)/.test(path)) return "settings";
+  if (/^(settings|delivery-settings|staff|customer-status-settings)/.test(path)) return "settings";
   if (path.startsWith("legal")) return "legal";
   if (/^(site-editor|page-blocks|site-banners|site-benefits|site-settings)/.test(path)) return "site-editor";
   if (/^(users|customers)/.test(path)) return "customers";

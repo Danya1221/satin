@@ -133,13 +133,16 @@ export default function Home({ initialData = {} }: { initialData?: HomePayload }
   const [data, setData] = useState(initialData);
   const hasInitialData = Boolean(initialData.products?.length || initialData.categories?.length || initialData.banners?.length);
   useEffect(() => {
-    if (hasInitialData) return;
+
     const controller = new AbortController();
-    fetch("/api/home", { cache: "no-store", signal: controller.signal })
+    const reload = () => fetch("/api/home", { cache: "no-store", signal: controller.signal })
       .then(async response => response.ok ? response.json() : null)
       .then(payload => { if (payload) setData(payload); })
       .catch(() => undefined);
-    return () => controller.abort();
+    if (!hasInitialData) void reload();
+    const storage = (event: StorageEvent) => { if (event.key === "store-settings-updated") void reload(); };
+    window.addEventListener("store-settings-updated", reload); window.addEventListener("storage", storage);
+    return () => { controller.abort(); window.removeEventListener("store-settings-updated", reload); window.removeEventListener("storage", storage); };
   }, [hasInitialData]);
   const blocks = (data.pageBlocks ?? defaultBlocks)
     .filter(block => block.enabled).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -174,7 +177,7 @@ export function HomeModule({ block, data }: { block: HomePageBlock; data: HomePa
   if (type === "new-arrivals") {
     if (!arrivals.length) return null;
     return <section className="store-section"><SectionHead eyebrow="Новое и интересное" title={text(settings, "title", "Знакомьтесь. Ваши новые любимые.")} subtitle={text(settings, "subtitle")} action={settings.showButton === false ? undefined : { text: text(settings, "buttonText", "Все новинки"), href: text(settings, "buttonHref", "/new") }} />
-      <div className="store-new-grid">{arrivals.slice(0, limit(settings, 3)).map(product => <Link className="store-new-card" href={`/product/${product.slug}`} key={product.slug}>
+      <div className="store-new-grid">{arrivals.slice(0, block.pageKey === "new" ? Math.max(1, Number(settings.limit) || 24) : limit(settings, 3)).map(product => <Link className="store-new-card" href={`/product/${product.slug}`} key={product.slug}>
         <div className="store-new-media">{product.promoImage || productImage(product) ? <StoreImage src={product.promoImage || productImage(product)} alt={product.name} width={600} height={450} sizes="(max-width: 639px) 78vw, 33vw" /> : <StoreIcon name="sparkles" />}</div>
         <div className="store-new-content"><span className="store-eyebrow">{product.brand || product.categoryName || "Новое в каталоге"}</span><h3>{product.name}</h3>{product.shortDescription && <p>{product.shortDescription}</p>}<span className="store-text-link">{product.price || "Подробнее"}<StoreIcon name="arrow" /></span></div>
       </Link>)}</div>
@@ -197,21 +200,27 @@ function SectionHead({ eyebrow, title, subtitle, action }: { eyebrow?: string; t
 function Hero({ banners, secondary = false, settings = {} }: { banners: HomeBanner[]; secondary?: boolean; settings?: BlockSettings }) {
   const { dark } = useTheme();
   const [active, setActive] = useState(0);
+  const [paused,setPaused] = useState(false);
   const touchX = useRef<number | null>(null);
   const slides = [...banners].sort((a, b) => a.sortOrder - b.sortOrder);
+  useEffect(() => {
+    if (settings.autoplay === false || paused || slides.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setInterval(() => { if (!document.hidden) setActive(value => (value + 1) % slides.length); }, Math.max(3, Math.min(30, Number(settings.interval)||6))*1000);
+    return () => window.clearInterval(timer);
+  }, [slides.length, settings.autoplay, settings.interval, paused]);
   const banner = slides[Math.min(active, Math.max(0, slides.length - 1))];
   const image = banner ? (dark ? banner.imageDark || banner.imageLight : banner.imageLight || banner.imageDark) || banner.imageMobile || "/images/technology-hero.webp" : "/images/technology-hero.webp";
   const title = text(settings, "title", banner?.title || banner?.adminTitle);
   const Heading = secondary ? "h2" : "h1";
   function next(direction: number) { if (slides.length > 1) setActive(current => (current + direction + slides.length) % slides.length); }
-  return <section className="store-hero" data-editorial={image === "/images/technology-hero.webp"} data-layout={banner?.layout || "image-bg"} data-title-size={banner?.titleSize} data-text-size={banner?.textSize} aria-roledescription={slides.length > 1 ? "карусель" : undefined} aria-label={title || "Техника для вашего ритма жизни"} onTouchStart={event => { touchX.current = event.touches[0].clientX; }} onTouchEnd={event => { if (touchX.current !== null && Math.abs(touchX.current - event.changedTouches[0].clientX) > 65) next(touchX.current > event.changedTouches[0].clientX ? 1 : -1); touchX.current = null; }}>
+  return <section className="store-hero" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={event => {if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);}} data-editorial={image === "/images/technology-hero.webp"} data-layout={banner?.layout || "image-bg"} data-title-size={banner?.titleSize} data-text-size={banner?.textSize} aria-roledescription={slides.length > 1 ? "карусель" : undefined} aria-label={title || "Техника для вашего ритма жизни"} onTouchStart={event => { touchX.current = event.touches[0].clientX; }} onTouchEnd={event => { if (touchX.current !== null && Math.abs(touchX.current - event.changedTouches[0].clientX) > 65) next(touchX.current > event.changedTouches[0].clientX ? 1 : -1); touchX.current = null; }}>
     <picture className="store-hero-media">{banner?.imageMobile && <source media="(max-width: 639px)" srcSet={banner.imageMobile} />}<img src={image} alt="" width={1536} height={1024} fetchPriority={secondary ? "auto" : "high"} loading={secondary ? "lazy" : "eager"} decoding="async" /></picture>
     <div className="store-hero-content"><span className="store-eyebrow">{banner?.label || "Технологии. С характером."}</span>
       <Heading>{title || <>Ближе к тому,<em>что нравится.</em></>}</Heading>
       <p className="store-hero-description">{text(settings, "subtitle", banner?.subtitle || banner?.description || "Для больших планов, любимой музыки и всего, что делает ваш день особенным.")}</p>
-      <div className="store-hero-actions">{settings.showButton !== false && <Link href={safeStoreHref(text(settings, "buttonHref", banner?.buttonHref || "/catalog"))} className="store-button">{text(settings, "buttonText", banner?.buttonText || "Выбрать своё")}<StoreIcon name="arrow" /></Link>}{banner?.secondaryButtonText ? <Link href={safeStoreHref(banner.secondaryButtonHref, "/help")} className="store-text-link">{banner.secondaryButtonText}</Link> : !banner && <Link href="/new" className="store-text-link">Смотреть новинки</Link>}</div>
+      <div className="store-hero-actions">{settings.showButton !== false && (!banner || Boolean(text(settings,"buttonText",banner.buttonText))) && <Link href={safeStoreHref(text(settings, "buttonHref", banner?.buttonHref || "/catalog"))} className="store-button">{text(settings, "buttonText", banner?.buttonText || "Выбрать своё")}<StoreIcon name="arrow" /></Link>}{settings.showSecondaryButton !== false && (banner?.secondaryButtonText ? <Link href={safeStoreHref(banner.secondaryButtonHref, "/help")} className="store-text-link">{banner.secondaryButtonText}</Link> : !banner && <Link href="/new" className="store-text-link">Смотреть новинки</Link>)}</div>
     </div>
-    <div className="store-hero-bottom"><span>{banner ? banner.label || "Избранное из нашего каталога" : "Ваш ритм. Ваш выбор."}</span>{slides.length > 1 && <div className="store-hero-pagination" aria-label="Выбор баннера"><button type="button" onClick={() => next(-1)} aria-label="Предыдущий баннер" className="store-hero-prev"><StoreIcon name="back" /></button>{slides.map((slide, index) => <button key={slide.id} type="button" aria-current={index === Math.min(active, slides.length - 1)} aria-label={`Баннер ${index + 1}: ${slide.title || slide.adminTitle}`} onClick={() => setActive(index)} />)}<button type="button" onClick={() => next(1)} aria-label="Следующий баннер" className="store-hero-next"><StoreIcon name="arrow" /></button></div>}</div>
+    <div className="store-hero-bottom"><span>{banner ? banner.label || "Избранное из нашего каталога" : "Ваш ритм. Ваш выбор."}</span>{slides.length > 1 && <div className="store-hero-pagination" aria-label="Выбор баннера"><span className="store-slide-count">{Math.min(active + 1, slides.length)} / {slides.length}</span><button type="button" onClick={() => next(-1)} aria-label="Предыдущий баннер" className="store-hero-prev"><StoreIcon name="back" /></button>{slides.map((slide, index) => <button key={slide.id} type="button" aria-current={index === Math.min(active, slides.length - 1)} aria-label={`Баннер ${index + 1}: ${slide.title || slide.adminTitle}`} onClick={() => setActive(index)} />)}<button type="button" onClick={() => next(1)} aria-label="Следующий баннер" className="store-hero-next"><StoreIcon name="arrow" /></button></div>}</div>
   </section>;
 }
 
@@ -230,7 +239,7 @@ function EditorialBlock({ settings }: { settings: BlockSettings }) {
   const description = text(settings, "text", text(settings, "description", text(settings, "subtitle")));
   const image = text(settings, dark ? "imageDark" : "imageLight", text(settings, "image"));
   if (!title && !description && !image) return null;
-  return <section className="store-section store-editor-block" data-side={text(settings, "imageSide", "right")} data-tone={text(settings, "tone")} data-layout={text(settings, "layout", "split")} style={{ minHeight: Math.max(0, Math.min(700, Number(settings.height) || 0)) }}><div>{text(settings, "eyebrow") && <span className="store-eyebrow">{text(settings, "eyebrow", text(settings, "label"))}</span>}{title && <h2>{title}</h2>}{description && <p>{description}</p>}{text(settings, "buttonText") && <Link className="store-button" href={safeStoreHref(text(settings, "buttonHref", "/catalog"))}>{text(settings, "buttonText")}<StoreIcon name="arrow" /></Link>}</div>{image && <StoreImage src={image} alt={text(settings, "imageAlt", title)} width={700} height={500} style={{ objectFit: text(settings, "imageFit") === "cover" ? "cover" : "contain" }} />}</section>;
+  return <section className="store-section store-editor-block" data-side={text(settings, "imageSide", "right")} data-tone={text(settings, "tone")} data-layout={text(settings, "layout", "split")} style={{ minHeight: Math.max(0, Math.min(700, Number(settings.height) || 0)) }}><div>{text(settings, "eyebrow") && <span className="store-eyebrow">{text(settings, "eyebrow", text(settings, "label"))}</span>}{title && <h2>{title}</h2>}{description && <p>{description}</p>}{settings.showButton !== false && text(settings, "buttonText") && <Link className="store-button" href={safeStoreHref(text(settings, "buttonHref", "/catalog"))}>{text(settings, "buttonText")}<StoreIcon name="arrow" /></Link>}</div>{image && <StoreImage src={image} alt={text(settings, "imageAlt", title)} width={700} height={500} style={{ objectFit: text(settings, "imageFit") === "cover" ? "cover" : "contain" }} />}</section>;
 }
 
 function Support({ settings }: { settings: BlockSettings }) {

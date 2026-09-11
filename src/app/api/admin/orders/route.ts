@@ -154,6 +154,8 @@ export async function POST(request: Request) {
           },
         });
 
+    const deliveryFee = deliveryType === "pickup" ? 0 : body.deliveryFee == null || body.deliveryFee === "" ? null : Number(body.deliveryFee);
+    if(deliveryFee !== null && (!Number.isSafeInteger(deliveryFee) || deliveryFee < 0 || deliveryFee > 1000000)) return NextResponse.json({error:"Проверьте стоимость доставки."},{status:400});
     const total = preparedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const order = await prisma.order.create({
       data: ({
@@ -163,6 +165,7 @@ export async function POST(request: Request) {
         phone,
         email,
         deliveryType,
+        deliveryFee, deliveryCarrier: deliveryType === "pickup" ? "pickup" : body.deliveryCarrier === "cdek" ? "cdek" : "courier",
         address: deliveryType === "courier" ? address : "",
         pickupPoint: deliveryType === "pickup" ? pickupPoint : "",
         paymentMethod,
@@ -171,7 +174,7 @@ export async function POST(request: Request) {
         promoDiscount: 0,
         promoCode: "",
         discountTotal: 0,
-        total,
+        total: total + (deliveryFee ?? 0),
         status,
         comment,
         managerComment,

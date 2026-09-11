@@ -8,12 +8,12 @@ export async function GET(request: NextRequest) {
   if (!isPageKey(page)) return NextResponse.json({ error: "Страница не найдена." }, { status: 404 });
   try {
     const blocks = await getPageBlocks(page);
-    const needsCatalog = blocks.some(block => block.enabled && ["category-grid", "product-carousel", "popular-products", "new-arrivals"].includes(block.type));
+    const needsCatalog = page === "new" || blocks.some(block => block.enabled && ["category-grid", "product-carousel", "popular-products", "new-arrivals"].includes(block.type));
     const [catalog, banners, benefits] = await Promise.all([
       needsCatalog ? getPublicCatalogData() : null,
       getSiteBanners({ activeOnly: true }), getSiteBenefits({ activeOnly: true, placement: "store" }),
     ]);
-    return NextResponse.json({ pageBlocks: blocks, products: catalog?.productCards ?? [], categories: catalog?.categories ?? [], banners, benefits }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ pageBlocks: blocks, products: catalog?.productCards ?? [], newArrivals: catalog?.productCards.filter(product => product.isNew) ?? [], categories: catalog?.categories ?? [], banners, benefits }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Не удалось загрузить настройки страницы." }, { status: 503 });
   }

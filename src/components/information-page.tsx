@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InformationExtras } from "@/components/information-extras";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { getLegalSettings, consentText } from "@/lib/legal-db";
@@ -20,5 +21,5 @@ export async function InformationPage({ kind }: { kind: PageKind }) {
     {kind === "consent" && <><p>Согласие подтверждается отдельным, заранее не отмеченным флажком в соответствующей форме. Выберите только нужную вам услугу. Подтверждение не включает рассылки или публикацию персональных данных.</p>{(["order", "account", "support"] as const).map((purpose, index) => <section key={purpose}><h2>{["Оформление заказа", "Личный кабинет", "Обращение в поддержку"][index]}</h2><p>{consentText(legal, purpose)}</p></section>)}<p>Подробности обработки и сведения об операторе: <Link href="/privacy">политика обработки персональных данных</Link>.</p></>}
     {kind === "cookies" && <><p>Сайт использует технические файлы cookie и локальное хранилище браузера для входа, корзины, избранного, настроек темы и переписки с поддержкой.</p><h2>Вход и обращения</h2><p>Cookie сессии позволяет серверу проверить вход в аккаунт. Технический cookie гостевого обращения подтверждает доступ к вашей переписке. Закрытые cookie недоступны коду страницы и передаются по защищённому соединению в рабочей среде.</p><h2>Настройки на устройстве</h2><p>Корзина, избранные товары, просмотренные модели, выбранная тема и часть черновиков форм сохраняются в вашем браузере. На общем устройстве завершайте сеанс и удаляйте данные сайта после работы.</p><h2>Управление хранением</h2><p>Вы можете удалить cookie и данные сайта в настройках браузера. Это завершит сеанс и может удалить сохранённую корзину и доступ к гостевой переписке. Встроенные рекламные и аналитические трекеры в текущей версии сайта не подключены.</p></>}
     <p className="store-document-help">Нужна помощь? <Link href="/help">Свяжитесь с магазином</Link>.</p>
-  </article></div><SiteFooter initialSettings={site} /></div></main>;
+  </article></div><InformationExtras page={kind} /><SiteFooter initialSettings={site} /></div></main>;
 }
