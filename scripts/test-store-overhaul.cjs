@@ -102,3 +102,11 @@ test('Editor response provides timestamps for an immediate second save', async (
  const second=await save({blocks:[{...saved,settings:{title:'Second'}}]});
  assert.equal(second.status,200); assert.equal(state.blocks.a.settings.title,'Second');
 });
+
+
+test('New information pages initialize without inserting an empty block batch', async () => {
+ delete state.settings['page-blocks-initialized:delivery'];
+ const blocks = await getPublicPageBlocks('delivery');
+ assert.deepEqual(blocks, []);
+ assert.equal(state.settings['page-blocks-initialized:delivery'].value, true);
+});

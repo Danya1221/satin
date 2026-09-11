@@ -487,7 +487,7 @@ export async function ensureDefaultPageBlocks(pageKey?: PageKey) {
     const marker = `page-blocks-initialized:${key}`;
     if (await prisma.siteSetting.findUnique({ where: { key: marker } })) continue;
     await prisma.$transaction(async tx => {
-      if (!(await tx.pageBlock.count({ where: { pageKey: key } }))) {
+      if (defaultPageBlocks[key].length > 0 && !(await tx.pageBlock.count({ where: { pageKey: key } }))) {
         await tx.pageBlock.createMany({ data: defaultPageBlocks[key].map(block => ({ ...block, settings: block.settings as Prisma.InputJsonValue })) });
       }
       await tx.siteSetting.upsert({ where: { key: marker }, create: { key: marker, value: true }, update: {} });
