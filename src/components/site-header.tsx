@@ -40,10 +40,13 @@ export function SiteHeader() {
   const [results, setResults] = useState<SearchProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState(false);
+  const [failedLogos, setFailedLogos] = useState<string[]>([]);
   const searchRoot = useRef<HTMLDivElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const name = site?.branding?.storeName?.trim() || "Магазин техники";
-  const logo = dark ? site?.branding?.logoLight : site?.branding?.logoDark;
+  const preferredLogo = dark ? site?.branding?.logoLight : site?.branding?.logoDark;
+  const alternateLogo = dark ? site?.branding?.logoDark : site?.branding?.logoLight;
+  const logo = preferredLogo ? [preferredLogo, alternateLogo].find(value => value && !failedLogos.includes(value)) : undefined;
   const phone = storeContact(site?.contacts?.phone);
   const contactPhone = site?.contacts?.phone?.trim() || "";
   const phoneHref = `tel:${contactPhone.replace(/[^\d+]/g, "")}`;
@@ -154,7 +157,7 @@ export function SiteHeader() {
       </div>
       <div className="store-header-main">
         <Link href="/" className="store-brand" aria-label={`${name} — главная`}>
-          {logo ? <img src={logo} alt={name} width={170} height={40} decoding="async" /> : <><span className="store-brand-mark" aria-hidden="true" /><span className="store-brand-word">{name}</span></>}
+          {logo ? <img src={logo} alt={name} width={170} height={40} decoding="async" onError={() => setFailedLogos(current => current.includes(logo) ? current : [...current, logo])} /> : <><span className="store-brand-mark" aria-hidden="true" /><span className="store-brand-word">{name}</span></>}
         </Link>
         <Link href="/catalog" className="store-catalog-button"><StoreIcon name="grid" /> Каталог</Link>
         <div className="store-search-root" ref={searchRoot} onKeyDown={event => {
