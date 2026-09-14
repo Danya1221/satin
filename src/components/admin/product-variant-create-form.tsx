@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent, ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
 
@@ -46,6 +46,7 @@ export function ProductVariantCreateForm({ productId, productName }: Props) {
   const [status, setStatus] = useState("active");
 
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -59,6 +60,8 @@ export function ProductVariantCreateForm({ productId, productName }: Props) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
     setError("");
     setSuccess("");
     setLoading(true);
@@ -88,9 +91,10 @@ export function ProductVariantCreateForm({ productId, productName }: Props) {
         }),
       });
 
-      const payload = await response.json();
+      const payload = await response.json().catch(() => null);
 
-      if (!response.ok) {
+      if (response.status === 413) throw new Error("Фотографии слишком большие. Уменьшите их размер и повторите сохранение.");
+      if (!response.ok || !payload?.variant) {
         throw new Error(payload?.error ?? "Не удалось создать SKU.");
       }
 
@@ -104,6 +108,7 @@ export function ProductVariantCreateForm({ productId, productName }: Props) {
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Неизвестная ошибка.");
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   }

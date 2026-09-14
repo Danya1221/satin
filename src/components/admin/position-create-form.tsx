@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent, ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { ColorPickerField } from "@/components/admin/color-picker-field";
@@ -75,6 +75,7 @@ export function PositionCreateForm({ products, initialProductSlug, initialCatego
   const [seoKeywords, setSeoKeywords] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
 
   const selectedProduct = products.find((product) => product.id === productId);
   const categoryProductsCount = initialCategorySlug
@@ -91,8 +92,11 @@ export function PositionCreateForm({ products, initialProductSlug, initialCatego
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
     setError("");
     setLoading(true);
+    let saved = false;
 
     try {
       if (!productId || !finalSku || !finalSlug || !finalTitle || !price) {
@@ -123,18 +127,20 @@ export function PositionCreateForm({ products, initialProductSlug, initialCatego
         }),
       });
 
-      const payload = await response.json();
+      const payload = await response.json().catch(() => null);
 
-      if (!response.ok) {
+      if (response.status === 413) throw new Error("Фотографии слишком большие. Уменьшите их размер и повторите сохранение.");
+      if (!response.ok || !payload?.variant) {
         throw new Error(payload?.error ?? "Не удалось создать позицию.");
       }
 
-      router.push(`/nz-console/positions/${encodeURIComponent(finalSku)}`);
+      saved = true;
+      router.push(`/nz-console/positions/${encodeURIComponent(payload.variant.sku)}`);
       router.refresh();
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Неизвестная ошибка.");
     } finally {
-      setLoading(false);
+      if (!saved) { submitting.current = false; setLoading(false); }
     }
   }
 
@@ -328,7 +334,7 @@ export function PositionCreateForm({ products, initialProductSlug, initialCatego
         </div>
 
         {error ? (
-          <div className="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <div role="alert" className="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
             {error}
           </div>
         ) : null}

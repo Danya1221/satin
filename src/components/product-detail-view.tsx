@@ -1,4 +1,6 @@
 "use client";
+import { toggleConfiguration } from "@/lib/product-configuration";
+import { useDockHeight } from "@/components/use-dock-height";
 
 import Link from "next/link";
 import { usePageContent, PageExtras } from "@/components/page-content";
@@ -178,13 +180,10 @@ export function ProductDetailView({
 }: ProductDetailViewProps) {
  const content = usePageContent("product");
  const site = useStoreSettings();
- const [selectedColor, setSelectedColor] = useState(
- selectedPosition?.color ?? (new Set(positions.map(p => p.color)).size === 1 ? positions[0]?.color ?? "" : ""),
- );
- const [selectedMemory, setSelectedMemory] = useState(
- selectedPosition?.memory ?? (new Set(positions.map(p => p.memory)).size === 1 ? positions[0]?.memory ?? "" : ""),
- );
- const [selectedSim, setSelectedSim] = useState(selectedPosition?.sim ?? (new Set(positions.map(p => p.sim)).size === 1 ? positions[0]?.sim ?? "" : ""));
+ const [selectedColor, setSelectedColor] = useState(selectedPosition?.color ?? "");
+ const [selectedMemory, setSelectedMemory] = useState(selectedPosition?.memory ?? "");
+ const [selectedSim, setSelectedSim] = useState(selectedPosition?.sim ?? "");
+ const purchaseDock = useDockHeight<HTMLDivElement>("--store-purchase-height");
 
  const [quantity, setQuantity] = useState(1);
  const [addedToCart, setAddedToCart] = useState(false);
@@ -296,7 +295,7 @@ export function ProductDetailView({
  // конкретную конфигурацию или пришёл по ссылке на конкретный SKU.
  // До выбора конфигурации остаётся фото материнской карточки, чтобы
  // разные комплектации не смешивались в галерее.
- const previewPosition = activePosition ?? selectedPosition;
+ const previewPosition = activePosition;
  const detailsPosition = previewPosition ?? positions[0];
  const mediaImages =
  previewPosition?.images && previewPosition.images.length > 0
@@ -783,14 +782,8 @@ export function ProductDetailView({
  }
 
  function selectConfiguration(key: "color" | "memory" | "sim", value: string) {
- const selection = { color: selectedColor, memory: selectedMemory, sim: selectedSim, [key]: value };
- const candidates = positions.filter(position => position[key] === value);
- const match = candidates.find(position => Object.entries(selection).every(([field, chosen]) => !chosen || position[field as "color" | "memory" | "sim"] === chosen));
- if (!match) {
-   for (const field of ["color", "memory", "sim"] as const) {
-     if (field !== key) selection[field] = "";
-   }
- }
+ const selection = toggleConfiguration({ color: selectedColor, memory: selectedMemory, sim: selectedSim }, key, value, positions);
+ setAddedToCart(false);
  setSelectedColor(selection.color); setSelectedMemory(selection.memory); setSelectedSim(selection.sim); setQuantity(1);
  }
  function selectColor(value: string) { selectConfiguration("color", value); }
@@ -1054,7 +1047,7 @@ export function ProductDetailView({
  <div className="mt-3 text-sm text-blue-500">{communityMessage}</div>
  ) : null}
 
- {!activePosition && <p className="store-config-hint">Выберите доступные параметры — покажем цену и наличие.</p>}
+
  {/* Full vertical selectors — always desktop, mobile only when not complete or editing */}
  <div className="store-config-options">
 
@@ -1169,11 +1162,12 @@ export function ProductDetailView({
  {priceRange}
  </div>
 
- <p className="mt-3 text-sm leading-relaxed text-muted sm:mt-4">
- {hasInvalidCompleteConfiguration
- ? "Такой конфигурации нет. Выберите другую комбинацию параметров."
- : "Итоговая цена и наличие появятся после выбора цвета, памяти и SIM."}
- </p>
+ <div className="store-config-hint" role="status">
+ <strong>Выберите конфигурацию</strong>
+ <span>{hasInvalidCompleteConfiguration
+ ? "Такой комбинации нет. Измените один из параметров."
+ : `Осталось выбрать: ${[colorOptions.length && !selectedColor ? "цвет" : "", memoryOptions.length && !selectedMemory ? "память" : "", simOptions.length && !selectedSim ? "SIM" : ""].filter(Boolean).join(", ") || "доступный вариант"}.`}</span>
+ </div>
 
  <div className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2">
  <button
@@ -1773,7 +1767,7 @@ export function ProductDetailView({
  ) : null}
  <PageExtras content={content} />
  <SiteFooter />
- <div className="store-mobile-purchase"><div><small>{activePosition ? "Выбранный вариант" : "Выберите параметры"}</small><strong>{activePosition ? (finalTotalPrice > 0 ? formatPrice(finalTotalPrice) : activePosition.price) : priceRange}</strong></div><button type="button" className="store-button" onClick={() => { if (activePosition && activePosition.stock > 0) { handleAddToCart(); } else { document.getElementById("product-purchase")?.scrollIntoView({behavior:"smooth",block:"start"}); } }}>{addedToCart ? "Добавлено ✓" : activePosition ? activePosition.stock > 0 ? "В корзину" : "Нет в наличии" : "Выбрать"}</button></div>
+ <div ref={purchaseDock} className="store-mobile-purchase" aria-label="Покупка товара"><div><small>{activePosition ? "Выбранный вариант" : "Выберите параметры"}</small><strong>{activePosition ? (finalTotalPrice > 0 ? formatPrice(finalTotalPrice) : activePosition.price) : priceRange}</strong></div><button type="button" className="store-button" onClick={() => { if (activePosition && activePosition.stock > 0) { handleAddToCart(); } else { document.getElementById("product-purchase")?.scrollIntoView({behavior:"smooth",block:"start"}); } }}>{addedToCart ? "Добавлено ✓" : activePosition ? activePosition.stock > 0 ? "В корзину" : "Нет в наличии" : "Выбрать"}</button></div>
  </div>
  </main>
  );

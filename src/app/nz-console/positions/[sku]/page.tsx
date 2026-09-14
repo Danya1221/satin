@@ -1,6 +1,6 @@
 import { BackLink } from "@/components/back-link";
 import Link from "next/link";
-import Image from 'next/image';
+import Image from "@/components/store-image";
 import { notFound } from "next/navigation";
 
 import { ProductVariantEditForm } from "@/components/admin/product-variant-edit-form";
@@ -54,7 +54,8 @@ export default async function AdminPositionDetailPage({
   params: Promise<{ sku: string }>;
 }) {
   const { sku } = await params;
-  const decodedSku = decodeURIComponent(sku);
+  // Next already decodes route parameters; a literal % in an SKU must stay intact.
+  const decodedSku = sku;
 
   const [variant, relatedProductOptions] = await Promise.all([
     prisma.productVariant.findUnique({
@@ -120,7 +121,7 @@ export default async function AdminPositionDetailPage({
                   <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-white/[0.045] text-xs text-white/25">
                     {mainImage ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <Image quality={75} src={mainImage} alt={variant.title} className="h-full w-full object-cover" />
+                      <Image width={96} height={96} quality={75} src={mainImage} alt={variant.title} className="h-full w-full object-contain" />
                     ) : (
                       "Фото"
                     )}

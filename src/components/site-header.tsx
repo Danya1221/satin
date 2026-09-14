@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useDockHeight } from "@/components/use-dock-height";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AuthModal } from "@/components/auth-modal";
@@ -24,6 +25,7 @@ export function SiteHeader() {
   const { dark, toggleTheme } = useTheme();
   const pathname = usePathname() || "/";
   const site = useStoreSettings();
+  const bottomDock = useDockHeight<HTMLElement>("--store-bottom-nav-height");
   const [categories, setCategories] = useState<HeaderCategory[]>([]);
   const [cartCount, setCartCount] = useState(0);
   const [authUser, setAuthUser] = useState<HeaderAuthUser | null>(null);
@@ -207,7 +209,7 @@ export function SiteHeader() {
         <Link href="/help" aria-current={isActive("/help") ? "page" : undefined}>Помощь с выбором</Link>
       </nav>
     </header>
-    <nav className="store-bottom-nav" aria-label="Мобильное меню">
+    <nav ref={bottomDock} className="store-bottom-nav" aria-label="Мобильное меню">
       {bottomNav.map(item => {
         const custom = site?.branding?.[`navIcon${item.key}`];
         return <Link key={item.key} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>

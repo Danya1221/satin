@@ -12,7 +12,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "test": "node --test scripts/test-auth.cjs scripts/test-store-overhaul.cjs scripts/test-catalog-tables.cjs"
+    "test": "node --test scripts/test-auth.cjs scripts/test-store-overhaul.cjs scripts/test-catalog-tables.cjs scripts/test-shopping.cjs"
   },
   "dependencies": {
     "framer-motion": "^12.38.0",

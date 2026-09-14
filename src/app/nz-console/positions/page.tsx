@@ -1,6 +1,6 @@
 import { BackLink } from "@/components/back-link";
 import type { ReactNode } from "react";
-import Image from 'next/image';
+import Image from "@/components/store-image";
 import Link from "next/link";
 
 import { PositionCopyButton } from "@/components/admin/position-copy-button";
@@ -366,7 +366,7 @@ export default async function AdminPositionsPage({
                       <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/[0.045] text-[10px] text-white/25">
                         {image ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <Image quality={75} src={image} alt={variant.title} className="h-full w-full object-cover" />
+                          <Image width={96} height={96} quality={75} src={image} alt={variant.title} className="h-full w-full object-contain" />
                         ) : (
                           "Фото"
                         )}

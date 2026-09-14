@@ -1062,13 +1062,14 @@ export function CatalogView({
  return;
  }
 
- const nextPath = nextCategoryId ? `/catalog/${nextCategoryId}` : "/catalog";
+ const nextPath = nextCategoryId ? `/catalog/${encodeURIComponent(nextCategoryId)}` : "/catalog";
  const nextUrl = popular ? `${nextPath}?popular=1` : nextPath;
 
  window.history.pushState({}, "", nextUrl);
  }
 
  function handleSelectCategory(nextCategoryId: string | null) {
+ nextCategoryId = nextCategoryId === selectedCategoryId ? null : nextCategoryId;
  setSelectedCategoryId(nextCategoryId);
  setOnlyPopular(false);
  setSelectedBrand(null);
@@ -1179,7 +1180,7 @@ export function CatalogView({
  <section hidden={!content.visible("category-grid")} className="mt-4 sm:mt-8">
  {isCategoryPanelVisible ? (
  <div className="rounded-[24px] border border-theme bg-card p-3 sm:rounded-[30px] sm:p-5">
- <div className="flex items-center justify-between gap-4">
+ <div className="flex flex-wrap items-center justify-between gap-3">
  <div>
  <h2 className="text-xl font-bold tracking-[-0.04em] sm:text-2xl">
  Категории
@@ -1201,16 +1202,17 @@ export function CatalogView({
  <div className="mt-4 grid grid-cols-1 gap-3 sm:mt-5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
  {categories.map((category) => {
  const isActive =
- category.id === selectedCategoryId && !hasActiveFilters;
+ category.id === selectedCategoryId;
 
  return (
  <button
  key={category.id}
  type="button"
+ aria-pressed={isActive}
  onClick={() => handleSelectCategory(category.id)}
- className={`group relative min-h-[132px] overflow-hidden rounded-2xl border p-4 text-left transition-all duration-300 hover:-translate-y-0.5 sm:min-h-[144px] ${
+ className={`store-catalog-category group relative min-h-[132px] overflow-hidden rounded-2xl border p-4 text-left transition-all duration-300 hover:-translate-y-0.5 sm:min-h-[144px] ${
  isActive
- ? "border-blue-500/65 bg-blue-500/[0.07]"
+ ? "border-blue-500/65"
  : "border-theme bg-card hover:border-blue-500/40"
  }`}
  >
@@ -1293,12 +1295,13 @@ export function CatalogView({
  {(isCategoriesOpen ? categories : categories.slice(0, 6)).map(
  (category) => {
  const isActive =
- category.id === selectedCategoryId && !hasActiveFilters;
+ category.id === selectedCategoryId;
 
  return (
  <button
  key={category.id}
  type="button"
+ aria-pressed={isActive}
  onClick={() => handleSelectCategory(category.id)}
  className={`snap-start whitespace-nowrap rounded-full border px-4 py-2.5 text-xs font-medium transition-all duration-300 sm:px-5 sm:py-3 sm:text-sm ${
  isActive

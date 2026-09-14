@@ -1,11 +1,12 @@
 "use client";
+import { getCheckoutIssues, getContactValidationError, getDeliveryValidationError, type CheckoutIssue } from "@/lib/checkout-validation";
 import { deliveryQuote, type DeliverySettings } from "@/lib/delivery-settings";
 import { ConsentFields, emptyConsent } from "@/components/consent-fields";
 
 import { BackLink } from "@/components/back-link";
 import Link from "next/link";
 import { usePageContent, PageExtras } from "@/components/page-content";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { products } from "@/data/products";
 import { productPositions } from "@/data/product-positions";
@@ -48,7 +49,7 @@ type RecentlyViewedProduct = {
 
 type CartProductLookup = Omit<CartItem, "quantity">;
 
-type ModalType = "delivery" | "contacts" | null;
+type ModalType = "delivery" | "contacts" | "validation" | null;
 type DeliveryMethod = "courier" | "pickup" | null;
 
 type CustomerData = {
@@ -141,35 +142,6 @@ const fallbackDeliveryOptions: DeliveryOption[] = [
  address: FALLBACK_PICKUP_POINT,
  },
 ];
-
-function getContactValidationError(customer: CustomerData) {
- if (!customer.name.trim()) {
- return "Укажите имя.";
- }
-
- if (!normalizeRuPhone(customer.phone)) {
- return "Укажите корректный телефон РФ.";
- }
-
- return "";
-}
-
-function getDeliveryValidationError(delivery: DeliveryData) {
- if (delivery.method === "pickup") {
- return delivery.address.trim() ? "" : "Выберите пункт выдачи.";
- }
-
- if (delivery.method === "courier") {
- const address = delivery.savedAddress.trim() || delivery.address.trim();
- if(delivery.deliveryKey === "cdek") return delivery.city.trim() || address ? "" : "Укажите город для доставки СДЭК.";
- const validation = validateCourierAddress(delivery.city, address);
-
- return validation.ok ? "" : validation.message;
- }
-
- return "Выберите способ получения.";
-}
-
 
 function readJson<T>(key: string): T | null {
  try {
@@ -334,6 +306,8 @@ export default function CartPage() {
  const [isCartLoaded, setIsCartLoaded] = useState(false);
  const [itemPendingRemove, setItemPendingRemove] = useState<CartItem | null>(null);
  const [activeModal, setActiveModal] = useState<ModalType>(null);
+ const [checkoutIssues, setCheckoutIssues] = useState<CheckoutIssue[]>([]);
+ const orderSubmittingRef = useRef(false);
  const [isRegistered, setIsRegistered] = useState(false);
  const [customer, setCustomer] = useState<CustomerData>({
  name: "",
@@ -606,7 +580,7 @@ export default function CartPage() {
  }, [items, recentlyViewed]);
 
  const hasItems = items.length > 0;
- const contactValidationError = isRegistered ? "" : getContactValidationError(customer);
+ const contactValidationError = getContactValidationError(customer);
  const deliveryValidationError = getDeliveryValidationError(delivery);
  const hasGuestContacts = !contactValidationError;
  const hasDelivery = !deliveryValidationError;
@@ -614,7 +588,7 @@ export default function CartPage() {
  const canPlaceOrder =
  hasItems &&
  hasDelivery &&
- (isRegistered || hasGuestContacts) &&
+ hasGuestContacts &&
  !quoteLoading &&
  !promoHasError;
  const deliveryCost = deliveryQuote(deliverySettings, delivery.method === "pickup" ? "pickup" : delivery.deliveryKey === "cdek" ? "cdek" : "courier", delivery.zoneId);
@@ -622,9 +596,7 @@ export default function CartPage() {
  const calculatedSubtotal = quote?.subtotal ?? subtotal;
 
  const deliverySummary = getDeliverySummary(delivery, isRegistered);
- const contactSummary = isRegistered
- ? "Контакты взяты из профиля"
- : hasGuestContacts
+ const contactSummary = hasGuestContacts
  ? `${customer.name}, ${customer.phone}`
  : "Укажите имя и телефон";
 
@@ -634,6 +606,7 @@ export default function CartPage() {
  }
 
  function updateQuantity(sku: string, nextQuantity: number) {
+ if (nextQuantity <= 0) { removeItem(sku); return; }
  const nextItems = items.map((item) => {
  if (item.sku !== sku) {
  return item;
@@ -785,18 +758,15 @@ export default function CartPage() {
  }
 
  async function placeOrder() {
- if (!consent.accepted || !consent.version || !consent.offerAccepted) { setOrderError("Подтвердите согласие и условия продажи."); return; }
- if (isOrderSubmitting) {
+ if (orderSubmittingRef.current) return;
+ const issues = getCheckoutIssues({ customer, delivery, consent, hasItems, quoteLoading, promoError: promoHasError ? quote?.promoMessage || "Удалите или исправьте недействующий промокод." : "" });
+ if (issues.length) {
+ setCheckoutIssues(issues);
+ setOrderError("");
+ setActiveModal("validation");
  return;
  }
-
- const nextContactError = isRegistered ? "" : getContactValidationError(customer);
- const nextDeliveryError = getDeliveryValidationError(delivery);
-
- if (!hasItems || nextContactError || nextDeliveryError) {
- setOrderError(nextContactError || nextDeliveryError || "Корзина пустая.");
- return;
- }
+ orderSubmittingRef.current = true;
 
  setIsOrderSubmitting(true);
  setOrderError("");
@@ -876,6 +846,7 @@ export default function CartPage() {
  } catch (error) {
  setOrderError(error instanceof Error ? error.message : "Не удалось создать заявку.");
  } finally {
+ orderSubmittingRef.current = false;
  setIsOrderSubmitting(false);
  }
  }
@@ -1088,9 +1059,10 @@ export default function CartPage() {
  </div>
 
  <div className="col-span-2 flex items-center justify-between gap-2 pt-1 md:col-span-1 md:flex-col md:items-end md:gap-6 md:pt-0">
- <div className="flex items-center gap-1.5 sm:gap-3">
+ <div className="store-cart-quantity flex items-center gap-1.5 sm:gap-3">
  <button
  type="button"
+ aria-label={item.quantity === 1 ? "Удалить товар из корзины" : "Уменьшить количество"}
  onClick={() => updateQuantity(item.sku, item.quantity - 1)}
  className="flex h-7 w-7 items-center justify-center rounded-xl border border-theme bg-transparent text-sm transition-colors hover:border-blue-500/40 hover:bg-blue-soft sm:h-9 sm:w-9 sm:text-lg"
  >
@@ -1104,6 +1076,7 @@ export default function CartPage() {
  <button
  type="button"
  disabled={!canIncrease}
+ aria-label="Увеличить количество"
  onClick={() => updateQuantity(item.sku, item.quantity + 1)}
  className="flex h-7 w-7 items-center justify-center rounded-xl border border-theme bg-transparent text-sm transition-colors hover:border-blue-500/40 hover:bg-blue-soft disabled:cursor-not-allowed disabled:opacity-40 sm:h-9 sm:w-9 sm:text-lg"
  >
@@ -1134,8 +1107,7 @@ export default function CartPage() {
  </div>
  </section>
 
- <section hidden={!content.visible("delivery-methods")} className="grid grid-cols-2 gap-2">
- {!isRegistered && (
+ <section hidden={!content.visible("delivery-methods")} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
  <CheckoutCard
  title="Контактные данные"
  text={
@@ -1148,7 +1120,6 @@ export default function CartPage() {
  action={hasGuestContacts ? "Изменить" : "Контакты"}
  onClick={() => setActiveModal("contacts")}
  />
- )}
 
  <CheckoutCard
  title={content.text("delivery-methods", "title", "Доставка")}
@@ -1157,7 +1128,6 @@ export default function CartPage() {
  isComplete={hasDelivery}
  action={hasDelivery ? "Изменить" : "Доставка"}
  onClick={() => setActiveModal("delivery")}
- className={isRegistered ? "sm:col-span-2" : ""}
  />
  </section>
  </div>
@@ -1261,7 +1231,7 @@ export default function CartPage() {
  ? quote?.promoMessage
  : quoteLoading
  ? "Пересчитываем скидки…"
- : getMissingText(hasDelivery, isRegistered, hasGuestContacts)}
+ : getMissingText(hasDelivery, false, hasGuestContacts)}
  </div>
  )}
 
@@ -1274,7 +1244,7 @@ export default function CartPage() {
  <ConsentFields value={consent} onChange={setConsent} order />
  <button
  type="button"
- disabled={!canPlaceOrder || isOrderSubmitting || !consent.accepted || !consent.offerAccepted}
+ disabled={isOrderSubmitting}
  onClick={placeOrder}
  className="mt-4 flex w-full justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-600/40 disabled:text-white/60 sm:mt-6 sm:px-7 sm:py-4"
  >
@@ -1300,6 +1270,16 @@ export default function CartPage() {
  <PageExtras content={content} />
  <SiteFooter />
  </div>
+
+ {activeModal === "validation" && (
+ <Modal title="Проверьте данные заказа" onClose={() => setActiveModal(null)}>
+ <p className="text-sm leading-relaxed text-muted">Для оформления осталось заполнить или проверить следующие пункты:</p>
+ <ul className="store-checkout-issues">
+ {checkoutIssues.map(issue => <li key={issue.section}><strong>{issue.section}</strong><span>{issue.message}</span></li>)}
+ </ul>
+ <button type="button" className="store-button w-full" onClick={() => setActiveModal(null)}>ОК</button>
+ </Modal>
+ )}
 
  {activeModal === "delivery" && (
  <Modal title="Получение заказа" onClose={() => setActiveModal(null)}>
@@ -1925,11 +1905,11 @@ function CheckoutCard({
  <button
  type="button"
  onClick={onClick}
- className={`card flex min-h-[110px] w-full flex-col justify-between rounded-[20px] p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-500/30 hover:bg-blue-soft ${className}`}
+ className={`store-checkout-card card flex min-h-[110px] min-w-0 w-full flex-col justify-between rounded-[20px] p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-500/30 hover:bg-blue-soft ${className}`}
  >
  <div className="w-full min-w-0">
- <div className="flex items-center justify-between gap-2">
- <div className="min-w-0 flex-1 truncate text-[15px] font-bold leading-snug">{title}</div>
+ <div className="flex flex-wrap items-start justify-between gap-2">
+ <div className="min-w-0 text-[15px] font-bold leading-snug">{title}</div>
  <span
  className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-medium leading-5 ${
  isComplete
@@ -1941,7 +1921,7 @@ function CheckoutCard({
  </span>
  </div>
 
- <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-muted">{text}</p>
+ <p className="mt-2 break-words text-[13px] leading-relaxed text-muted">{text}</p>
  </div>
 
  <div className="mt-3 text-[13px] font-medium text-blue-500">{action}</div>
@@ -1958,25 +1938,24 @@ function Modal({
  children: ReactNode;
  onClose: () => void;
 }) {
+ const dialog = useRef<HTMLDialogElement>(null);
+ const titleId = useId();
+ useEffect(() => {
+ const element = dialog.current;
+ if (!element) return;
+ const previousOverflow = document.body.style.overflow;
+ document.body.style.overflow = "hidden";
+ element.showModal();
+ return () => { element.close(); document.body.style.overflow = previousOverflow; };
+ }, []);
  return (
- <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 px-4 py-4 backdrop-blur-sm md:items-center md:px-6">
- <div className="card relative max-h-[92vh] w-full max-w-[720px] overflow-visible rounded-[24px] p-5 sm:rounded-[28px] sm:p-6 md:p-8">
+ <dialog ref={dialog} className="store-checkout-modal card" aria-labelledby={titleId} onCancel={event => { event.preventDefault(); onClose(); }}>
  <div className="flex items-start justify-between gap-4">
- <h2 className="text-2xl font-bold tracking-[-0.04em] sm:text-3xl">{title}</h2>
-
- <button
- type="button"
- onClick={onClose}
- className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-theme bg-transparent text-xl transition-colors hover:border-blue-500/40 hover:bg-blue-soft"
- aria-label="Закрыть"
- >
- ×
- </button>
+ <h2 id={titleId} className="text-2xl font-bold tracking-[-0.04em] sm:text-3xl">{title}</h2>
+ <button type="button" onClick={onClose} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-theme bg-transparent text-xl" aria-label="Закрыть">×</button>
  </div>
-
- <div className="mt-3 max-h-[calc(92vh-96px)] overflow-y-auto overflow-x-visible pr-1 sm:mt-6">{children}</div>
- </div>
- </div>
+ <div className="store-checkout-modal-content">{children}</div>
+ </dialog>
  );
 }
 
